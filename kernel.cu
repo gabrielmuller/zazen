@@ -4,7 +4,6 @@
 
 #define _ HANDLE_ERROR
 const int DIM = 1024;
-
 __global__ struct Voxel {
     /* Non-leaf voxel. */
 
@@ -80,24 +79,44 @@ __global__ struct Block {
     }
 };
 
-__global__ void placeholder(uchar4 *ptr, int ticks) {
+__device__ Block* block = nullptr;
+
+__global__ void set_global_block(char* data, size_t element_count) {
+    block = new Block(element_count, data);
+}
+
+__global__ void placeholder(uchar4 *ptr, int ticks) {//,
+                            //char* data, size_t element_count) {
     // map from threadIdx/BlockIdx to pixel position
     const int pixel_x = threadIdx.x + blockIdx.x * blockDim.x;
     const int pixel_y = threadIdx.y + blockIdx.y * blockDim.y;
     const int offset = pixel_x + pixel_y * blockDim.x * gridDim.x;
-    const float screen_x = pixel_x / (float) DIM;
-    const float screen_y = pixel_y / (float) DIM;
+    const float screen_x = pixel_x / (float) DIM - 0.5;
+    const float screen_y = pixel_y / (float) DIM - 0.5;
 
-    const float time = ticks * 0.01;
+    const float time = ticks / 60.0;
 
+    // background are animated colors as placeholder
     ptr[offset].x = screen_x * (sin(time * 3) + 1) * 0.5 * 256;
-    ptr[offset].y = (1 - screen_y) * (sin(time * 7) + 1) * 0.5 * 256;
+    //ptr[offset].y = (1 - screen_y) * (sin(time * 7) + 1) * 0.5 * 256;
     ptr[offset].z = (1 - screen_x) * screen_y * (cos(time * 13) + 1) * 128;
     ptr[offset].w = 0xff;
+
+    for (int i = 0; i < 30 * 6; i++) {
+    const float plane_y = sin(time);
+    const float world_z = plane_y / screen_y;
+    const float world_x = world_z * screen_x;
+    if (world_z > time && world_z < time + 3 && world_x < 1 && world_x > -1) {//2 && world_z < 3 && world_x > 2 && world_x < 3) {
+        const float dist = cbrt(plane_y * plane_y + world_z * world_z + world_x * world_x);
+        const float intensity = 1 / sqrtf(dist);
+        ptr[offset].x = intensity * 256;
+        ptr[offset].y = intensity * 256 * i;
+        ptr[offset].z = intensity * 256;
+    }
+    }
 }
 
-__global__ void kernel(char* data, size_t element_count) {
-    Block* block = new Block(element_count, data);
+__global__ void kernel() {
     printf("Here goes nothing: '");
     printf("%c", block->get<Voxel>(block->get<Voxel>(0).child + 1).valid);
     printf("'\n");
@@ -127,9 +146,10 @@ int main(void) {
     _( cudaMalloc((void**) &dev_data, block.size()) );
     _( cudaMemcpy(dev_data, block.data, block.size(), cudaMemcpyHostToDevice) );
 
+    set_global_block<<<1, 1>>>(dev_data, block.element_count);
 
-    kernel<<<1, 1>>>(dev_data, block.element_count);
-    _( cudaFree(dev_data) );
-    GPUAnimBitmap  bitmap(DIM, DIM, NULL);
+    GPUAnimBitmap bitmap(DIM, DIM, NULL);
     bitmap.anim_and_exit((void(*)(uchar4*,void*,int)) generate_frame, NULL);
+
+    _( cudaFree(dev_data) );
 }
