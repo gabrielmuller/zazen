@@ -20,6 +20,21 @@ __global__ struct Leaf {
     int8_t r, g, b, a;
 };
 
+
+__device__ struct Vector {
+    /* Simple container struct for a 3D vector. */
+    double x, y, z;
+    __device__ explicit Vector(double x, double y, double z) :
+            x(x), y(y), z(z) {}
+};
+
+__device__ struct Ray {
+    /* Simple container class for a ray. */
+    Vector origin, direction;
+    __device__ explicit Ray(Vector origin, Vector direction) :
+            origin(origin), direction(direction) {}
+};
+
 __global__ struct Block {
     static const std::size_t element_size = 4;
     const size_t element_count;
@@ -37,31 +52,14 @@ __global__ struct Block {
         front = data;
     }
 
-
     ~Block() {
         delete[] data;
     }
 
     Block(Block&) = delete; // No copy constructor.
-
     Block& operator=(Block&) = delete; // No assigning.
-
-    // Move constructor
-    Block(Block&& rhs) :
-            element_count(rhs.element_count),
-            data(rhs.data) {
-        rhs.data = nullptr;
-    }
-
-    // Move assignment operator
-    Block& operator=(Block&& rhs) {
-        if (this != &rhs) {
-            operator delete(data);
-            data = rhs.data;
-            rhs.data = nullptr;
-        }
-        return *this;
-    }
+    Block(Block&& rhs) = delete; // No move constructor
+    Block& operator=(Block&& rhs) = delete; // No move assignment operator
 
     template <class T>
     __device__ T& get(const std::size_t index) const {
@@ -91,28 +89,26 @@ __global__ void placeholder(uchar4 *ptr, int ticks) {//,
     const int pixel_x = threadIdx.x + blockIdx.x * blockDim.x;
     const int pixel_y = threadIdx.y + blockIdx.y * blockDim.y;
     const int offset = pixel_x + pixel_y * blockDim.x * gridDim.x;
-    const float screen_x = pixel_x / (float) DIM - 0.5;
-    const float screen_y = pixel_y / (float) DIM - 0.5;
+    const double screen_x = pixel_x / (double) DIM - 0.5;
+    const double screen_y = pixel_y / (double) DIM - 0.5;
 
-    const float time = ticks / 60.0;
+    const double time = ticks / 60.0;
 
     // background are animated colors as placeholder
     ptr[offset].x = screen_x * (sin(time * 3) + 1) * 0.5 * 256;
-    //ptr[offset].y = (1 - screen_y) * (sin(time * 7) + 1) * 0.5 * 256;
+    ptr[offset].y = (1 - screen_y) * (sin(time * 7) + 1) * 0.5 * 256;
     ptr[offset].z = (1 - screen_x) * screen_y * (cos(time * 13) + 1) * 128;
     ptr[offset].w = 0xff;
 
-    for (int i = 0; i < 30 * 6; i++) {
-    const float plane_y = sin(time);
-    const float world_z = plane_y / screen_y;
-    const float world_x = world_z * screen_x;
-    if (world_z > time && world_z < time + 3 && world_x < 1 && world_x > -1) {//2 && world_z < 3 && world_x > 2 && world_x < 3) {
-        const float dist = cbrt(plane_y * plane_y + world_z * world_z + world_x * world_x);
-        const float intensity = 1 / sqrtf(dist);
+    const double plane_y = sin(time);
+    const double world_z = plane_y / screen_y;
+    const double world_x = world_z * screen_x;
+    if (world_z > time && world_z < time + 3 && world_x < 1 && world_x > -1) {
+        const double dist = cbrt(plane_y * plane_y + world_z * world_z + world_x * world_x);
+        const double intensity = 2 / (dist * dist);
         ptr[offset].x = intensity * 256;
-        ptr[offset].y = intensity * 256 * i;
+        ptr[offset].y = intensity * 256;
         ptr[offset].z = intensity * 256;
-    }
     }
 }
 
@@ -147,6 +143,7 @@ int main(void) {
     _( cudaMemcpy(dev_data, block.data, block.size(), cudaMemcpyHostToDevice) );
 
     set_global_block<<<1, 1>>>(dev_data, block.element_count);
+    kernel<<<1, 1>>>();
 
     GPUAnimBitmap bitmap(DIM, DIM, NULL);
     bitmap.anim_and_exit((void(*)(uchar4*,void*,int)) generate_frame, NULL);
