@@ -3,6 +3,7 @@
 #include <cmath>
 
 #define _ HANDLE_ERROR
+#define NEGATIVE_INF -999999999
 
 /* Three bits, for example: BOTTOM_RIGHT_FRONT
  * 0           1           1 
@@ -27,8 +28,8 @@ __global__ struct Voxel {
     // 15 high bits: relative child pointer
     // 1 lowest bit: far flag TODO
     uint16_t child;
-    uint8_t valid; // 8 flags of whether child are visible
-    uint8_t leaf;  // 8 flags of whether child are leaves
+    uint8_t valid; // 8 flags of whether children are visible
+    uint8_t leaf;  // 8 flags of whether children are leaves
 };
 
 __global__ struct Leaf {
@@ -60,7 +61,7 @@ __device__ struct Vector {
     __device__ Vector(const Vector& v) : Vector(v.x, v.y, v.z) {}
 
     __device__ float magnitude() const {
-        return cbrtf(x*x + y*y + z*z);
+        return sqrtf(x*x + y*y + z*z);
     }
 
     __device__ Vector& normalized() {
@@ -71,27 +72,28 @@ __device__ struct Vector {
         return *this;
     }
 
+    __device__ Vector mirror(uint8_t mask) const {
+        float mirror_x = mask & 4 ? -x : x;
+        float mirror_y = mask & 2 ? -y : y;
+        float mirror_z = mask & 1 ? -z : z;
+        return Vector(mirror_x, mirror_y, mirror_z);
+    }
 };
 
 __device__ struct Ray {
     /* Simple container class for a ray. */
     Vector origin, direction, negdir;
-    uint8_t octant_mask;
     __device__ explicit Ray(const Vector origin, const Vector direction) :
             origin(origin), direction(direction) {
-        float x = direction.x > 0 ? -direction.x : direction.x;
-        float y = direction.y > 0 ? -direction.y : direction.y;
-        float z = direction.z > 0 ? -direction.z : direction.z;
-        negdir = Vector(x, y, z);
-
-        // calculations are simpler if ray direction is negative in all axis,
-        // so coordinate system is adjusted accordingly.
-        octant_mask = (uint8_t) RIGHT_TOP_FRONT;
-        if (direction.x > 0) octant_mask ^= 4;
-        if (direction.y > 0) octant_mask ^= 2;
-        if (direction.z > 0) octant_mask ^= 1;
     }
 
+    __device__ uint8_t octant_mask() {
+        uint8_t mask = 0;
+        if (direction.x > 0) mask ^= 4;
+        if (direction.y > 0) mask ^= 2;
+        if (direction.z > 0) mask ^= 1;
+        return mask;
+    }
 };
 
 __device__ struct AABB {
@@ -234,8 +236,7 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0), LOWEST);
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(-sin(time)*5,1,5 * cos(time)), Vector(-0.757241 + screen_x, 0.837796 + screen_y, 0.793701).normalized());
-    if (!offset) printv(ray.direction);
+    Ray ray(Vector(0,0,0), Vector(sin(time)+screen_x, cos(time)+screen_y, 1).normalized());
 
     ptr[offset].x = 0;
     ptr[offset].y = 0;
@@ -264,57 +265,89 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
             box.size *= 0.5;
             ptr[offset].x += 0x20;
         } else {
-            /* Ray origin is in mixed voxel, cast ray until it hits next
+            /* Ray origin is in invalid voxel, cast ray until it hits next
              * voxel. 
              */
-            float tx = (box.corner.x - ray.origin.x) / ray.negdir.x;
-            float ty = (box.corner.y - ray.origin.y) / ray.negdir.y;
-            float tz = (box.corner.z - ray.origin.z) / ray.negdir.z;
-            float t;
+            AABB child(box.corner, box.size * 0.5);
+
+            if (oct & RIGHT) child.corner.x += child.size;
+            if (oct & TOP)   child.corner.y += child.size;
+            if (oct & FRONT) child.corner.z += child.size;
+
+            Vector upper(child.corner.x + child.size,
+                                child.corner.y + child.size,
+                                child.corner.z + child.size);
+
+            uint8_t mask = ray.octant_mask();
+            Vector mirror_direction = ray.direction.mirror(mask);
+            Vector mirror_origin = ray.origin.mirror(mask);
+            Vector mirror_corner = child.corner.mirror(mask);
+            float tx = (mirror_corner.x - mirror_origin.x) / mirror_direction.x;
+            float ty = (mirror_corner.y - mirror_origin.y) / mirror_direction.y;
+            float tz = (mirror_corner.z - mirror_origin.z) / mirror_direction.z;
+            float t = NEGATIVE_INF;
 
             /* Detect which face hit. */
             Octant hit_face;
-            if (tx > ty && tx > tz) {
+            bool direction;
+
+            // t is the largest negative value of {tx, ty, tz}
+            if (tx < 0) {
                 t = tx;
                 hit_face = RIGHT;
-            } else if (ty > tx && ty > tz) {
-                t  = ty;
+            }
+            if (ty < 0 && ty > t) {
+                t = ty;
                 hit_face = TOP;
-            } else {
+            }
+            if (tz < 0 && tz > t) {
                 t = tz;
                 hit_face = FRONT;
             }
-
-            if (abs(t) > box.size) {
-                ptr[offset].x = 0xaf;
-                ptr[offset].z = 0xaf;
+            if (!hit_face) {
+                // what the heck?
+                ptr[offset].z = 0x8f;
                 return;
             }
 
-            /* Invert check if direction is negative. */
-            Octant inverter = (ray.octant_mask >> hit_face) & 1
-                    ? RIGHT_TOP_FRONT
-                    : LOWEST;
-
+            if (!offset){
+                printf("Mask:          %d\n", mask);
+                printf("Box corner:    ");
+                printv(box.corner);
+                printf("Mirror corner: ");
+                printv(mirror_corner);
+                printf("Box size:      %f\n", box.size);
+                printf("Ray direction: ");
+                printv(ray.direction);
+                printf("Mirror directi:");
+                printv(mirror_direction);
+                printf("Ray origin:    ");
+                printv(ray.origin);
+                printf("Face hit:       %d\n", hit_face);
+                printf("tx, ty, tz, t:  (%f, %f, %f) -> %f\n", tx, ty, tz, t);
+                printf("\n");
+            }
 
             /* Ray will start next step at the point of this intersection */
+            t *= 1.1;
             ray.origin = Vector(t * ray.direction.x,
                           t * ray.direction.y,
-                          t * ray.direction.z);
+                          t * ray.direction.z).mirror(mask);
 
-            while (hit_face & (stack.peek_oct() ^ inverter)) {
+            while (hit_face & (stack.peek_oct() ^ mask)) {
                 if (stack.empty()) {
                     /* Ray is outside root octree. */
-                    ptr[offset].y = 0xff;
+                    ptr[offset].y = 0x8f;
                     return;
                 }
                 /* Hit face is at this voxel's boundary, search parent */
                 stack.pop();
                 box.size *= 2;
             }
+
             if (stack.empty()) {
                 /* Ray is outside root octree. */
-                ptr[offset].y = 0xff;
+                ptr[offset].y = 0xaf;
                 return;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
@@ -346,8 +379,8 @@ int main(void) {
     Block block(3);
     Voxel* y = new (block.slot()) Voxel();
     y->child = 1;
-    y->valid = 0x08;
-    y->leaf = 0x08;
+    y->valid = 0xee;
+    y->leaf = 0xee;
     new (block.slot()) Leaf(0xff, 0x00, 0xff, 0xff);
     new (block.slot()) Leaf(0xff, 0xff, 0x00, 0xff);
 
