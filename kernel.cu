@@ -3,7 +3,6 @@
 #include <cmath>
 
 #define _ HANDLE_ERROR
-#define NEGATIVE_INF -999999999
 
 /* Three bits, for example: BOTTOM_RIGHT_FRONT
  * 0           1           1 
@@ -236,7 +235,9 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0), LOWEST);
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(0,0,0), Vector(sin(time)+screen_x, cos(time)+screen_y, 1).normalized());
+    Ray ray(Vector(0,0,0), Vector(sin(time)+screen_x, cos(time)+screen_y, cos(time)).normalized());
+    stack.peek_oct() = box.get_octant(ray.origin);
+    float distance = 0;
 
     ptr[offset].x = 0;
     ptr[offset].y = 0;
@@ -251,13 +252,13 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
             break;
         }
 
-        Octant oct = box.get_octant(ray.origin);
+        Octant oct = stack.peek_oct();
         bool valid = (stack.peek()->valid >> oct) & 1;
         bool leaf = (stack.peek()->leaf >> oct) & 1;
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
             Leaf* leaf = &block->get<Leaf>(stack.peek()->child + oct);
-            ptr[offset].x = 0xff;
+            ptr[offset].x = 0xff - distance;
             break;
         } else if (valid) {
             /* Go a level deeper. */
@@ -282,25 +283,25 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
             Vector mirror_direction = ray.direction.mirror(mask);
             Vector mirror_origin = ray.origin.mirror(mask);
             Vector mirror_corner = child.corner.mirror(mask);
-            float tx = (mirror_corner.x - mirror_origin.x) / mirror_direction.x;
-            float ty = (mirror_corner.y - mirror_origin.y) / mirror_direction.y;
-            float tz = (mirror_corner.z - mirror_origin.z) / mirror_direction.z;
-            float t = NEGATIVE_INF;
+            float tx = (box.corner.x - mirror_origin.x) / mirror_direction.x;
+            float ty = (box.corner.y - mirror_origin.y) / mirror_direction.y;
+            float tz = (box.corner.z - mirror_origin.z) / mirror_direction.z;
+            float t = INFINITY;
 
             /* Detect which face hit. */
-            Octant hit_face;
+            Octant hit_face = LOWEST;
             bool direction;
 
-            // t is the largest negative value of {tx, ty, tz}
-            if (tx < 0) {
+            // t is the smallest positive value of {tx, ty, tz}
+            if (tx > 0) {
                 t = tx;
                 hit_face = RIGHT;
             }
-            if (ty < 0 && ty > t) {
+            if (ty > 0 && ty < t) {
                 t = ty;
                 hit_face = TOP;
             }
-            if (tz < 0 && tz > t) {
+            if (tz > 0 && tz < t) {
                 t = tz;
                 hit_face = FRONT;
             }
@@ -308,7 +309,7 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
                 // what the heck?
                 ptr[offset].z = 0x8f;
                 return;
-            }
+            } else ptr[offset].z = (uint8_t) hit_face * 10;
 
             if (!offset){
                 printf("Mask:          %d\n", mask);
@@ -329,10 +330,14 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
             }
 
             /* Ray will start next step at the point of this intersection */
-            t *= 1.1;
-            ray.origin = Vector(t * ray.direction.x,
-                          t * ray.direction.y,
-                          t * ray.direction.z).mirror(mask);
+            t *= 1.01;
+            Ray diff = Vector(t * ray.direction.x,
+                              t * ray.direction.y,
+                              t * ray.direction.z);
+                              //TODO
+            ray.origin = Vector(t * ray.direction.x + ray.origin.x,
+                          t * ray.direction.y + ray.origin.y,
+                          t * ray.direction.z + ray.origin.z).mirror(mask);
 
             while (hit_face & (stack.peek_oct() ^ mask)) {
                 if (stack.empty()) {
