@@ -3,6 +3,7 @@
 #include <cmath>
 #include <stdio.h>
 #include <new>
+#include <limits>
 
 #define WIDTH 128
 #define HEIGHT 128
@@ -74,9 +75,9 @@ struct Ray {
 
     uint8_t octant_mask() {
         uint8_t mask = 0;
-        if (direction.x > 0) mask ^= 4;
-        if (direction.y > 0) mask ^= 2;
-        if (direction.z > 0) mask ^= 1;
+        if (direction.x >= 0) mask ^= 4;
+        if (direction.y >= 0) mask ^= 2;
+        if (direction.z >= 0) mask ^= 1;
         return mask;
     }
 };
@@ -248,12 +249,12 @@ void render(unsigned char* pixel, int i, int j) {
             AABB child(box.corner, box.size * 0.5);
 
             if (oct & 4) child.corner.x += child.size;
-            if (oct & 2)   child.corner.y += child.size;
+            if (oct & 2) child.corner.y += child.size;
             if (oct & 1) child.corner.z += child.size;
 
             Vector upper(child.corner.x + child.size,
-                                child.corner.y + child.size,
-                                child.corner.z + child.size);
+                         child.corner.y + child.size,
+                         child.corner.z + child.size);
 
             uint8_t mask = ray.octant_mask();
             Vector mirror_direction = ray.direction.mirror(mask);
@@ -262,27 +263,43 @@ void render(unsigned char* pixel, int i, int j) {
             float tx = (box.corner.x - mirror_origin.x) / mirror_direction.x;
             float ty = (box.corner.y - mirror_origin.y) / mirror_direction.y;
             float tz = (box.corner.z - mirror_origin.z) / mirror_direction.z;
-            float t = INFINITY;
+            float t = std::numeric_limits<float>::infinity();
 
             /* Detect which face hit. */
             uint8_t hit_face = 0;
             bool direction;
 
-            // t is the smallest positive value of {tx, ty, tz}
-            if (tx > 0) {
+            /* t is the smallest positive value of {tx, ty, tz} */
+            if (tx >= 0) {
                 t = tx;
                 hit_face = 4;
             }
-            if (ty > 0 && ty < t) {
+            if (ty >= 0 && ty < t) {
                 t = ty;
                 hit_face = 2;
             }
-            if (tz > 0 && tz < t) {
+            if (tz >= 0 && tz < t) {
                 t = tz;
                 hit_face = 1;
             }
             if (!hit_face) {
                 pixel[2] = 0x8f;
+                printf("BLUE\n");
+                printf("Mask:          %d\n", mask);
+                printf("Box corner:    ");
+                printv(box.corner);
+                printf("Mirror corner: ");
+                printv(mirror_corner);
+                printf("Box size:      %f\n", box.size);
+                printf("Ray direction: ");
+                printv(ray.direction);
+                printf("Mirror directi:");
+                printv(mirror_direction);
+                printf("Ray origin:    ");
+                printv(ray.origin);
+                printf("Face hit:       %d\n", hit_face);
+                printf("tx, ty, tz, t:  (%f, %f, %f) -> %f\n", tx, ty, tz, t);
+                printf("\n");
                 return;
             } else pixel[2] = hit_face * 10;
 
@@ -305,10 +322,12 @@ void render(unsigned char* pixel, int i, int j) {
             }
 
             /* Ray will start next step at the point of this intersection */
-            t *= 1.01;
-            ray.origin = Vector(t * ray.direction.x + ray.origin.x,
-                          t * ray.direction.y + ray.origin.y,
-                          t * ray.direction.z + ray.origin.z).mirror(mask);
+            t += std::numeric_limits<float>::epsilon();
+            ray.origin = Vector(
+                t * ray.direction.x + ray.origin.x,
+                t * ray.direction.y + ray.origin.y,
+                t * ray.direction.z + ray.origin.z
+            ).mirror(mask);
 
             while (hit_face & (stack.peek_oct() ^ mask)) {
                 if (stack.empty()) {
@@ -381,8 +400,8 @@ int main(int argc, char **argv) {
     block = new Block(3);
     Voxel* y = new (block->slot()) Voxel();
     y->child = 1;
-    y->valid = 0xee;
-    y->leaf = 0xee;
+    y->valid = 0x02;
+    y->leaf = 0x02;
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
 
