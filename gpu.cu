@@ -306,7 +306,6 @@ __global__ void render(uchar4 *ptr, int ticks) {//,
                 hit_face = FRONT;
             }
             if (!hit_face) {
-                // what the heck?
                 ptr[offset].z = 0x8f;
                 return;
             } else ptr[offset].z = (uint8_t) hit_face * 10;

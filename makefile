@@ -1,7 +1,9 @@
 all:
-	nvcc -lglut -lGL -lGLU -o zazen *.cu
-	./zazen
+	g++ cpu.cpp -lglut -lGLU -lGL -lm
+	./a.out
+	#nvcc -lglut -lGL -lGLU -o zazen *.cu
+	#./zazen
 
 debug:
-	nvcc -g -G -lglut -lGL -lGLU -o zazen *.cu
-	cuda-gdb --tui zazen
+	g++ cpu.cpp -lglut -lGLU -lGL -lm -O0 -g
+	gdb a.out --tui
