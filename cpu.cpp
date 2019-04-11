@@ -114,9 +114,9 @@ struct AABB {
 };
 
 struct StackEntry {
-    Voxel* voxel;
-    uint8_t octant;
-    Vector corner;
+    Voxel* voxel;   // pointer to voxel in Block
+    uint8_t octant; // octant ray origin is in this voxel
+    Vector corner;  // inferior corner
 };
 
 struct VoxelStack {
@@ -219,7 +219,12 @@ void render(unsigned char* pixel, int i, int j) {
                 );
     float distance = 0;
 
+    pixel[0] = 0x00;
+    pixel[1] = 0x00;
+    pixel[2] = 0x00;
+
     while (true) {
+        // XXX DELETE
         if (stack.empty()) {
             // XXX EMPTY STACK - YELLOW
             pixel[0] = 0xff;
@@ -227,7 +232,7 @@ void render(unsigned char* pixel, int i, int j) {
             break;
         }
 
-        uint8_t oct = stack.peek().octant;
+        const uint8_t oct = stack.peek().octant;
         bool valid = (stack.peek().voxel->valid >> oct) & 1;
         bool leaf = (stack.peek().voxel->leaf >> oct) & 1;
         if (leaf) {
@@ -240,30 +245,48 @@ void render(unsigned char* pixel, int i, int j) {
             break;
         } 
 
-        /* Go a level deeper. */
+        if (valid) {
+            /* Go a level deeper. */
 
-        // Adjust inferior corner
-        box.size *= 0.5;
-        if (oct & 4) box.corner.x += box.size;
-        if (oct & 2) box.corner.y += box.size;
-        if (oct & 1) box.corner.z += box.size;
+            // Adjust inferior corner
+            box.size *= 0.5;
+            if (oct & 4) box.corner.x += box.size;
+            if (oct & 2) box.corner.y += box.size;
+            if (oct & 1) box.corner.z += box.size;
 
-        stack.push(&block->get<Voxel>(stack.peek().voxel->child + oct),
-                   oct,
-                   box.corner);
+            stack.push(&block->get<Voxel>(stack.peek().voxel->child + oct),
+                        box.get_octant(ray.origin),
+                        box.corner);
 
-        // XXX EVERY MARCH - SLIGHTLY REDDER
-        pixel[0] += 0x10;
+            // XXX EVERY MARCH - SLIGHTLY REDDER
+            pixel[0] += 0x10;
 
-        if (!valid) {
+        } else {
             /* Ray origin is in invalid voxel, cast ray until it hits next
              * voxel. 
              */
-            StackEntry& child = stack.peek();
+
+            StackEntry child = {&block->get<Voxel>(stack.peek().voxel->child + oct),
+                                box.get_octant(ray.origin),
+                                box.corner};
+
+            float child_size = box.size * 0.5;
+            Vector centered(ray.origin.x - (child.corner.x + child_size * 0.5),
+                            ray.origin.y - (child.corner.y + child_size * 0.5),
+                            ray.origin.z - (child.corner.z + child_size * 0.5)
+            );
+            if (oct & 4) child.corner.x += child_size;
+            if (oct & 2) child.corner.y += child_size;
+            if (oct & 1) child.corner.z += child_size;
+
             uint8_t mask = ray.octant_mask();
             Vector mirror_direction = ray.direction.mirror(mask);
-            Vector mirror_origin = ray.origin.mirror(mask);
-            Vector mirror_corner = child.corner.mirror(mask);
+            Vector mirror_origin = centered.mirror(mask);
+
+            mirror_origin.x -= child_size * 0.5;
+            mirror_origin.y -= child_size * 0.5;
+            mirror_origin.z -= child_size * 0.5;
+
             float tx = (child.corner.x - mirror_origin.x) / mirror_direction.x;
             float ty = (child.corner.y - mirror_origin.y) / mirror_direction.y;
             float tz = (child.corner.z - mirror_origin.z) / mirror_direction.z;
@@ -271,7 +294,6 @@ void render(unsigned char* pixel, int i, int j) {
 
             /* Detect which face hit. */
             uint8_t hit_face = 0;
-            bool direction;
 
             /* t is the smallest positive value of {tx, ty, tz} */
             if (tx > 0) {
@@ -289,16 +311,15 @@ void render(unsigned char* pixel, int i, int j) {
             if (!hit_face) {
                 // XXX NO FACE HIT - BLUER
                 pixel[2] = 0xff;
-                //printf("BLUE\n");
-            } //else pixel[2] = hit_face * 10;
+            }
 
             if (!i && !j){
             printf("Pixel (x, y):  (%d, %d)\n", i, j);
             printf("Mask:          %d\n", mask);
             printf("Child box corn:");
             printv(child.corner);
-            printf("Mirror corner: ");
-            printv(mirror_corner);
+            printf("Box corner:    ");
+            printv(box.corner);
             printf("Box size:      %f\n", box.size);
             printf("Ray direction: ");
             printv(ray.direction);
@@ -306,9 +327,11 @@ void render(unsigned char* pixel, int i, int j) {
             printv(mirror_direction);
             printf("Ray origin:    ");
             printv(ray.origin);
+            printf("Mirror origin: ");
+            printv(mirror_origin);
             printf("Face hit:       %d\n", hit_face);
             printf("tx, ty, tz, t:  (%f, %f, %f) -> %f\n", tx, ty, tz, t);
-            printf("\n");
+            printf("Mask:           %d\n", mask);
             }
 
             if (!hit_face) return;
@@ -321,11 +344,11 @@ void render(unsigned char* pixel, int i, int j) {
                     t * ray.direction.z + ray.origin.z
                     );
 
-            // Start with parent
-            stack.pop();
-            box.size *= 2;
-
-            while (hit_face & (stack.peek().octant ^ mask)) {
+            if (!i && !j)
+            printf("Peek oct:       %d\n", stack.peek().octant);
+            while (hit_face & !(stack.peek().octant ^ mask)) {
+                if (!i && !j)
+                printf("Peek oct:       %d\n", stack.peek().octant);
                 if (stack.empty()) {
                     /* Ray is outside root octree. */
                     // XXX EMPTY STACK - DARK GREEN
@@ -336,6 +359,8 @@ void render(unsigned char* pixel, int i, int j) {
                 stack.pop();
                 box.size *= 2;
             }
+            if (!i && !j)
+            puts("\n");
 
             if (stack.empty()) {
                 /* Ray is outside root octree. */

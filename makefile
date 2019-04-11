@@ -1,6 +1,6 @@
 all:
 	g++ cpu.cpp -lglut -lGLU -lGL -lm
-	./a.out
+	./a.out > log
 	#nvcc -lglut -lGL -lGLU -o zazen *.cu
 	#./zazen
 
