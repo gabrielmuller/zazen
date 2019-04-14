@@ -5,10 +5,11 @@
 #include <new>
 #include <limits>
 
-#define WIDTH 128
-#define HEIGHT 128
+#define WIDTH 256
+#define HEIGHT 256
 
 const float e = std::numeric_limits<float>::epsilon() * 1;
+const float fov = 0.5;
 unsigned char texture[WIDTH][HEIGHT][3];             
 int t = 0;
 
@@ -20,6 +21,15 @@ struct Voxel {
     uint16_t child;
     uint8_t valid; // 8 flags of whether children are visible
     uint8_t leaf;  // 8 flags of whether children are leaves
+
+    size_t address_of(uint8_t oct) {
+        /* Get address in block of child octant. */
+        size_t address = child;
+        for (int i = 0; i < oct; i++) {
+            if ((1 << i) & (valid | leaf)) address++;
+        }
+        return address;
+    }
 };
 
 struct Leaf {
@@ -47,7 +57,7 @@ struct Vector {
 
     Vector(const Vector& v) : Vector(v.x, v.y, v.z) {}
 
-    float magnitude() const {
+    inline float magnitude() const {
         return sqrtf(x*x + y*y + z*z);
     }
 
@@ -74,8 +84,10 @@ inline void printv(Vector vector) {
 struct Ray {
     /* Simple container class for a ray. */
     Vector origin, direction, negdir;
+    float distance;
+
     explicit Ray(const Vector origin, Vector direction) :
-        origin(origin) {
+        origin(origin), distance(0) {
             if (fabsf(direction.x) < e) direction.x = copysignf(e, direction.x);
             if (fabsf(direction.y) < e) direction.y = copysignf(e, direction.y);
             if (fabsf(direction.z) < e) direction.z = copysignf(e, direction.z);
@@ -91,9 +103,15 @@ struct Ray {
     }
 
     Ray march(float amount) {
-        origin.x += direction.x * amount;
-        origin.y += direction.y * amount;
-        origin.z += direction.z * amount;
+        Vector diff(direction.x * amount,
+                    direction.y * amount,
+                    direction.z * amount); 
+
+        origin.x += diff.x;
+        origin.y += diff.y;
+        origin.z += diff.z;
+        distance += diff.magnitude();
+
         return *this;
     }
 };
@@ -208,9 +226,9 @@ struct Block {
     Block& operator=(Block&& rhs) = delete; // No move assignment operator.
 
     template <class T>
-        T& get(const std::size_t index) const {
-            return ((T*) data)[index];
-        }
+    T& get(const std::size_t index) const {
+        return ((T*) data)[index];
+    }
 
     char* slot() {
         char* front_slot = front;
@@ -229,20 +247,20 @@ void render(unsigned char* pixel, int i, int j) {
     bool do_log = !(i%32)&&!(j%32);
     if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
 
-    const float screen_x = i / (float) WIDTH - 0.5;
-    const float screen_y = j / (float) HEIGHT - 0.5;
+
+    const float screen_x = (i * fov) / (float) WIDTH - 0.5;
+    const float screen_y = (j * fov) / (float) HEIGHT - 0.5;
 
     const float time = t / 60.0F;
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(-0.3,-0.3,-0.1), Vector(sin(time)+screen_x, cos(time)+screen_y, cos(time)).normalized());
+    Ray ray(Vector(-0.9,-0.85,-0.8), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
                 box.corner
                 );
-    float distance = 0;
 
     pixel[0] = 0x00;
     pixel[1] = 0x00;
@@ -262,9 +280,9 @@ void render(unsigned char* pixel, int i, int j) {
         bool leaf = (stack.peek().voxel->leaf >> oct) & 1;
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            Leaf* leaf = &block->get<Leaf>(stack.peek().voxel->child + oct);
+            Leaf* leaf = &block->get<Leaf>(stack.peek().voxel->address_of(oct));
             // XXX LEAF - RED
-            pixel[0] = 0xff - distance;
+            pixel[0] = 256/(ray.distance * ray.distance);
             pixel[1] = 0x00;
             pixel[2] = 0x00;
             break;
@@ -279,7 +297,7 @@ void render(unsigned char* pixel, int i, int j) {
             if (oct & 2) box.corner.y += box.size;
             if (oct & 1) box.corner.z += box.size;
 
-            stack.push(&block->get<Voxel>(stack.peek().voxel->child + oct),
+            stack.push(&block->get<Voxel>(stack.peek().voxel->address_of(oct)),
                         box.get_octant(ray),
                         box.corner);
 
@@ -291,9 +309,11 @@ void render(unsigned char* pixel, int i, int j) {
              * voxel. 
              */
 
-            StackEntry child = {&block->get<Voxel>(stack.peek().voxel->child + oct),
-                                box.get_octant(ray),
-                                box.corner};
+            StackEntry child = {
+                &block->get<Voxel>(stack.peek().voxel->address_of(oct)),
+                box.get_octant(ray),
+                box.corner
+            };
 
             float child_size = box.size * 0.5;
 
@@ -339,8 +359,8 @@ void render(unsigned char* pixel, int i, int j) {
                 hit_face = 1;
             }
             if (!hit_face) {
-                // XXX NO FACE HIT - BLUER
-                pixel[2] = 0xff;
+                // XXX NO FACE HIT - GREEN
+                pixel[1] = 0xff;
             }
 
             if (do_log){
@@ -382,8 +402,8 @@ void render(unsigned char* pixel, int i, int j) {
                 printf("Peek oct:       %d\n", stack.peek().octant);
                 if (stack.empty()) {
                     /* Ray is outside root octree. */
-                    // XXX EMPTY STACK - DARK GREEN
-                    pixel[1] = 0x8f;
+                    // XXX EMPTY STACK - DARK BLUE
+                    pixel[2] = 0x8f;
                     return;
                 }
                 /* Hit face is at this voxel's boundary, search parent */
@@ -397,7 +417,8 @@ void render(unsigned char* pixel, int i, int j) {
 
             if (stack.empty()) {
                 /* Ray is outside root octree. */
-                pixel[1] = 0xaf;
+                // XXX EMPTY STACK AFTER LOOP - BLUE
+                pixel[2] = 0xaf;
                 return;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
@@ -451,13 +472,18 @@ void renderScene() {
 }
 
 int main(int argc, char **argv) {
-    block = new Block(3);
-    Voxel* y = new (block->slot()) Voxel();
-    y->child = 1;
-    y->valid = 0x0e;
-    y->leaf = 0x0e;
+    block = new Block(4);
+    Voxel* p = new (block->slot()) Voxel();
+    Voxel* c = new (block->slot()) Voxel();
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
-    new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
+    //new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
+
+    p->child = 1;
+    p->valid = 0x80;
+    p->leaf = 0x00;
+    c->child = 2;
+    c->valid = 0x80;
+    c->leaf = 0x80;
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
