@@ -5,9 +5,10 @@
 #include <new>
 #include <limits>
 
-#define WIDTH 256
-#define HEIGHT 256
+#define WIDTH 128
+#define HEIGHT 128
 
+const float e = std::numeric_limits<float>::epsilon() * 1;
 unsigned char texture[WIDTH][HEIGHT][3];             
 int t = 0;
 
@@ -66,11 +67,19 @@ struct Vector {
     }
 };
 
+inline void printv(Vector vector) {
+    printf("(%f, %f, %f) %f\n", vector.x, vector.y, vector.z, vector.magnitude());
+}
+
 struct Ray {
     /* Simple container class for a ray. */
     Vector origin, direction, negdir;
-    explicit Ray(const Vector origin, const Vector direction) :
-        origin(origin), direction(direction) {
+    explicit Ray(const Vector origin, Vector direction) :
+        origin(origin) {
+            if (fabsf(direction.x) < e) direction.x = copysignf(e, direction.x);
+            if (fabsf(direction.y) < e) direction.y = copysignf(e, direction.y);
+            if (fabsf(direction.z) < e) direction.z = copysignf(e, direction.z);
+            this->direction = direction;
         }
 
     uint8_t octant_mask() {
@@ -79,6 +88,13 @@ struct Ray {
         if (direction.y >= 0) mask ^= 2;
         if (direction.z >= 0) mask ^= 1;
         return mask;
+    }
+
+    Ray march(float amount) {
+        origin.x += direction.x * amount;
+        origin.y += direction.y * amount;
+        origin.z += direction.z * amount;
+        return *this;
     }
 };
 
@@ -102,13 +118,21 @@ struct AABB {
     }
 
     inline uint8_t get_octant
-        (const Vector vector) const {
+        (Ray ray) const {
             /* Returns which octant the vector resides inside box. */
             uint8_t octant = 0;
-            float oct_size = size * 0.5;
-            if (vector.x > corner.x + oct_size) octant ^= 4;
-            if (vector.y > corner.y + oct_size) octant ^= 2;
-            if (vector.z > corner.z + oct_size) octant ^= 1;
+            const float oct_size = size * 0.5;
+
+            // If point is at border, adjust according to ray direction
+            while (ray.origin.x == corner.x + oct_size ||
+                   ray.origin.y == corner.y + oct_size ||
+                   ray.origin.z == corner.z + oct_size) {
+                ray.march(e);
+            }
+
+            if (ray.origin.x > corner.x + oct_size) octant ^= 4;
+            if (ray.origin.y > corner.y + oct_size) octant ^= 2;
+            if (ray.origin.z > corner.z + oct_size) octant ^= 1;
             return octant;
         }
 };
@@ -151,11 +175,11 @@ struct VoxelStack {
         return !top;
     }
 
-};
+    inline size_t size() {
+        return top;
+    }
 
-inline void printv(Vector vector) {
-    printf("(%f, %f, %f) %f\n", vector.x, vector.y, vector.z, vector.magnitude());
-}
+};
 
 struct Block {
     static const std::size_t element_size = 4;
@@ -202,7 +226,8 @@ struct Block {
 Block* block = nullptr;
 
 void render(unsigned char* pixel, int i, int j) {
-    if (!i && !j) printf("\nNEW FRAME\n");
+    bool do_log = !(i%32)&&!(j%32);
+    if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
 
     const float screen_x = i / (float) WIDTH - 0.5;
     const float screen_y = j / (float) HEIGHT - 0.5;
@@ -211,10 +236,10 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(0,0,0), Vector(sin(time)+screen_x, cos(time)+screen_y, cos(time)).normalized());
+    Ray ray(Vector(-0.3,-0.3,-0.1), Vector(sin(time)+screen_x, cos(time)+screen_y, cos(time)).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
-                box.get_octant(ray.origin),
+                box.get_octant(ray),
                 box.corner
                 );
     float distance = 0;
@@ -255,7 +280,7 @@ void render(unsigned char* pixel, int i, int j) {
             if (oct & 1) box.corner.z += box.size;
 
             stack.push(&block->get<Voxel>(stack.peek().voxel->child + oct),
-                        box.get_octant(ray.origin),
+                        box.get_octant(ray),
                         box.corner);
 
             // XXX EVERY MARCH - SLIGHTLY REDDER
@@ -267,25 +292,30 @@ void render(unsigned char* pixel, int i, int j) {
              */
 
             StackEntry child = {&block->get<Voxel>(stack.peek().voxel->child + oct),
-                                box.get_octant(ray.origin),
+                                box.get_octant(ray),
                                 box.corner};
 
             float child_size = box.size * 0.5;
-            Vector centered(ray.origin.x - (child.corner.x + child_size * 0.5),
-                            ray.origin.y - (child.corner.y + child_size * 0.5),
-                            ray.origin.z - (child.corner.z + child_size * 0.5)
-            );
+
             if (oct & 4) child.corner.x += child_size;
             if (oct & 2) child.corner.y += child_size;
             if (oct & 1) child.corner.z += child_size;
 
+            Vector centered(ray.origin.x - (child.corner.x + child_size * 0.5), 
+                            ray.origin.y - (child.corner.y + child_size * 0.5), 
+                            ray.origin.z - (child.corner.z + child_size * 0.5)  
+            );
+
             uint8_t mask = ray.octant_mask();
             Vector mirror_direction = ray.direction.mirror(mask);
             Vector mirror_origin = centered.mirror(mask);
+            if (do_log) {
+                printf("Mask %d, Center mirror: ", mask); printv(mirror_origin);
+            }
 
-            mirror_origin.x -= child_size * 0.5;
-            mirror_origin.y -= child_size * 0.5;
-            mirror_origin.z -= child_size * 0.5;
+            mirror_origin.x += (child.corner.x + child_size * 0.5);
+            mirror_origin.y += (child.corner.y + child_size * 0.5);
+            mirror_origin.z += (child.corner.z + child_size * 0.5);
 
             float tx = (child.corner.x - mirror_origin.x) / mirror_direction.x;
             float ty = (child.corner.y - mirror_origin.y) / mirror_direction.y;
@@ -313,9 +343,8 @@ void render(unsigned char* pixel, int i, int j) {
                 pixel[2] = 0xff;
             }
 
-            if (!i && !j){
+            if (do_log){
             printf("Pixel (x, y):  (%d, %d)\n", i, j);
-            printf("Mask:          %d\n", mask);
             printf("Child box corn:");
             printv(child.corner);
             printf("Box corner:    ");
@@ -323,6 +352,8 @@ void render(unsigned char* pixel, int i, int j) {
             printf("Box size:      %f\n", box.size);
             printf("Ray direction: ");
             printv(ray.direction);
+            printf("Centered:      ");
+            printv(centered);
             printf("Mirror directi:");
             printv(mirror_direction);
             printf("Ray origin:    ");
@@ -338,16 +369,16 @@ void render(unsigned char* pixel, int i, int j) {
 
             /* Ray will start next step at the point of this intersection */
             t += std::numeric_limits<float>::epsilon();
-            ray.origin = Vector(
-                    t * ray.direction.x + ray.origin.x,
-                    t * ray.direction.y + ray.origin.y,
-                    t * ray.direction.z + ray.origin.z
-                    );
+            ray.march(t);
 
-            if (!i && !j)
-            printf("Peek oct:       %d\n", stack.peek().octant);
-            while (hit_face & !(stack.peek().octant ^ mask)) {
-                if (!i && !j)
+            if (do_log) {
+                printf("-------------\n");
+                printf("Before:Peek oct:%d\n", oct);
+                printf("Before:size:    %lu\n", stack.size());
+                printf("hit&~(oct^mask)=%d\n", hit_face & ~(stack.peek().octant ^ mask));
+            }
+            while (hit_face & ~(stack.peek().octant ^ mask)) {
+                if (do_log)
                 printf("Peek oct:       %d\n", stack.peek().octant);
                 if (stack.empty()) {
                     /* Ray is outside root octree. */
@@ -359,8 +390,10 @@ void render(unsigned char* pixel, int i, int j) {
                 stack.pop();
                 box.size *= 2;
             }
-            if (!i && !j)
-            puts("\n");
+            if (do_log) {
+                printf("After:Peek oct: %d\n", stack.peek().octant);
+                printf("After:stk_size: %lu\n\n", stack.size());
+            }
 
             if (stack.empty()) {
                 /* Ray is outside root octree. */
@@ -421,8 +454,8 @@ int main(int argc, char **argv) {
     block = new Block(3);
     Voxel* y = new (block->slot()) Voxel();
     y->child = 1;
-    y->valid = 0x02;
-    y->leaf = 0x02;
+    y->valid = 0x0e;
+    y->leaf = 0x0e;
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
 
