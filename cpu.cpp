@@ -9,7 +9,7 @@
 #define HEIGHT 256
 
 const float e = std::numeric_limits<float>::epsilon() * 1;
-const float fov = 0.5;
+const float fov = 1; // 1 -> 90 degrees
 unsigned char texture[WIDTH][HEIGHT][3];             
 int t = 0;
 
@@ -255,7 +255,7 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(-0.9,-0.85,-0.8), Vector(screen_x, screen_y, 1).normalized());
+    Ray ray(Vector(sin(time)*0.99, cos(time)*0.99, -2), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
@@ -282,7 +282,9 @@ void render(unsigned char* pixel, int i, int j) {
             /* Ray origin is inside leaf voxel, render leaf. */
             Leaf* leaf = &block->get<Leaf>(stack.peek().voxel->address_of(oct));
             // XXX LEAF - RED
-            pixel[0] = 256/(ray.distance * ray.distance);
+            if (ray.distance < 1.01) ray.distance = 1.01;
+            if (do_log) printf("Distance: %f", ray.distance);
+            pixel[0] = 1024/(ray.distance * ray.distance);
             pixel[1] = 0x00;
             pixel[2] = 0x00;
             break;
@@ -301,8 +303,8 @@ void render(unsigned char* pixel, int i, int j) {
                         box.get_octant(ray),
                         box.corner);
 
-            // XXX EVERY MARCH - SLIGHTLY REDDER
-            pixel[0] += 0x10;
+            // XXX EVERY MARCH - SLIGHTLY GREENER
+            pixel[1] += 0x10;
 
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits next
@@ -385,8 +387,6 @@ void render(unsigned char* pixel, int i, int j) {
             printf("Mask:           %d\n", mask);
             }
 
-            if (!hit_face) return;
-
             /* Ray will start next step at the point of this intersection */
             t += std::numeric_limits<float>::epsilon();
             ray.march(t);
@@ -404,7 +404,7 @@ void render(unsigned char* pixel, int i, int j) {
                     /* Ray is outside root octree. */
                     // XXX EMPTY STACK - DARK BLUE
                     pixel[2] = 0x8f;
-                    return;
+                    break;
                 }
                 /* Hit face is at this voxel's boundary, search parent */
                 stack.pop();
@@ -419,7 +419,7 @@ void render(unsigned char* pixel, int i, int j) {
                 /* Ray is outside root octree. */
                 // XXX EMPTY STACK AFTER LOOP - BLUE
                 pixel[2] = 0xaf;
-                return;
+                break;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
              * Transfer to sibling voxel, changing on the axis of the face
@@ -437,7 +437,7 @@ void renderScene() {
     fflush(stdout);
     for (int  i = 0; i < WIDTH; i++) {
         for (int j = 0; j < HEIGHT; j++) {
-            unsigned char* pixel = texture[i][j];
+            unsigned char* pixel = texture[j][i];
             render(pixel, i, j);
         }
     }
@@ -472,18 +472,20 @@ void renderScene() {
 }
 
 int main(int argc, char **argv) {
-    block = new Block(4);
+    block = new Block(3);
     Voxel* p = new (block->slot()) Voxel();
-    Voxel* c = new (block->slot()) Voxel();
+    //Voxel* c = new (block->slot()) Voxel();
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
     //new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
 
     p->child = 1;
-    p->valid = 0x80;
-    p->leaf = 0x00;
+    p->valid = 0x82;
+    p->leaf = 0x82;
+    /*
     c->child = 2;
     c->valid = 0x80;
     c->leaf = 0x80;
+    */
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
