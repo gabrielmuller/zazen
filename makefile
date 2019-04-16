@@ -5,5 +5,5 @@ all:
 	#./zazen
 
 debug:
-	g++ cpu.cpp -lglut -lGLU -lGL -lm -O0 -g
+	g++ -O0 -g cpu.cpp -lglut -lGLU -lGL -lm
 	gdb a.out --tui

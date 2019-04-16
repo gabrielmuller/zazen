@@ -42,10 +42,10 @@ struct Leaf {
     Leaf(uint8_t r, uint8_t g, uint8_t b, uint8_t a) :
         r(r), g(g), b(b), a(a) {}
 
-    inline void set_color(unsigned char* pixel) const {
-        pixel[0] = r;
-        pixel[0] = g;
-        pixel[0] = b;
+    inline void set_color(unsigned char* pixel, float lightness) const {
+        pixel[0] = r * lightness;
+        pixel[1] = g * lightness;
+        pixel[2] = b * lightness;
     }
 };
 struct Vector {
@@ -145,7 +145,7 @@ struct AABB {
             while (ray.origin.x == corner.x + oct_size ||
                    ray.origin.y == corner.y + oct_size ||
                    ray.origin.z == corner.z + oct_size) {
-                ray.march(e);
+                ray.march(e * 100);
             }
 
             if (ray.origin.x > corner.x + oct_size) octant ^= 4;
@@ -245,7 +245,6 @@ Block* block = nullptr;
 
 void render(unsigned char* pixel, int i, int j) {
     bool do_log = !(i%32)&&!(j%32);
-    if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
 
 
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
@@ -255,7 +254,7 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(sin(time)*0.99, cos(time)*0.99, -2), Vector(screen_x, screen_y, 1).normalized());
+    Ray ray(Vector(sin(time*2)*0.6, 0.9, -0.5), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
@@ -267,13 +266,6 @@ void render(unsigned char* pixel, int i, int j) {
     pixel[2] = 0x00;
 
     while (true) {
-        // XXX DELETE
-        if (stack.empty()) {
-            // XXX EMPTY STACK - YELLOW
-            pixel[0] = 0xff;
-            pixel[1] = 0xff;
-            break;
-        }
 
         const uint8_t oct = stack.peek().octant;
         bool valid = (stack.peek().voxel->valid >> oct) & 1;
@@ -281,13 +273,13 @@ void render(unsigned char* pixel, int i, int j) {
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
             Leaf* leaf = &block->get<Leaf>(stack.peek().voxel->address_of(oct));
+            printf("%lu ", stack.size());
             // XXX LEAF - RED
             if (ray.distance < 1.01) ray.distance = 1.01;
             if (do_log) printf("Distance: %f", ray.distance);
-            pixel[0] = 1024/(ray.distance * ray.distance);
-            pixel[1] = 0x00;
-            pixel[2] = 0x00;
-            break;
+            float lightness = 1/(ray.distance * ray.distance);
+            leaf->set_color(pixel, lightness);
+            return;
         } 
 
         if (valid) {
@@ -304,7 +296,7 @@ void render(unsigned char* pixel, int i, int j) {
                         box.corner);
 
             // XXX EVERY MARCH - SLIGHTLY GREENER
-            pixel[1] += 0x10;
+            pixel[1] += 0x20;
 
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits next
@@ -312,7 +304,7 @@ void render(unsigned char* pixel, int i, int j) {
              */
 
             StackEntry child = {
-                &block->get<Voxel>(stack.peek().voxel->address_of(oct)),
+                nullptr,
                 box.get_octant(ray),
                 box.corner
             };
@@ -385,6 +377,7 @@ void render(unsigned char* pixel, int i, int j) {
             printf("Face hit:       %d\n", hit_face);
             printf("tx, ty, tz, t:  (%f, %f, %f) -> %f\n", tx, ty, tz, t);
             printf("Mask:           %d\n", mask);
+            printf("Oct:            %d\n", oct);
             }
 
             /* Ray will start next step at the point of this intersection */
@@ -393,7 +386,6 @@ void render(unsigned char* pixel, int i, int j) {
 
             if (do_log) {
                 printf("-------------\n");
-                printf("Before:Peek oct:%d\n", oct);
                 printf("Before:size:    %lu\n", stack.size());
                 printf("hit&~(oct^mask)=%d\n", hit_face & ~(stack.peek().octant ^ mask));
             }
@@ -403,7 +395,7 @@ void render(unsigned char* pixel, int i, int j) {
                 if (stack.empty()) {
                     /* Ray is outside root octree. */
                     // XXX EMPTY STACK - DARK BLUE
-                    pixel[2] = 0x8f;
+                    pixel[2] = 0x40;
                     break;
                 }
                 /* Hit face is at this voxel's boundary, search parent */
@@ -411,21 +403,20 @@ void render(unsigned char* pixel, int i, int j) {
                 box.size *= 2;
             }
             if (do_log) {
-                printf("After:Peek oct: %d\n", stack.peek().octant);
                 printf("After:stk_size: %lu\n\n", stack.size());
             }
 
             if (stack.empty()) {
                 /* Ray is outside root octree. */
                 // XXX EMPTY STACK AFTER LOOP - BLUE
-                pixel[2] = 0xaf;
+                pixel[2] = 0x60;
                 break;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
              * Transfer to sibling voxel, changing on the axis of the face
              * that was hit.
              */
-            stack.peek().octant = (stack.peek().octant ^ hit_face);
+            stack.peek().octant ^= hit_face;
         }
     }
 }
@@ -434,6 +425,7 @@ void renderScene() {
 
     // render the texture here
 
+    printf("\n\n\n*************\n* FRAME %d *\n*************\n\n", t);
     fflush(stdout);
     for (int  i = 0; i < WIDTH; i++) {
         for (int j = 0; j < HEIGHT; j++) {
@@ -442,7 +434,6 @@ void renderScene() {
         }
     }
 
-    printf("%d\n", t);
     t++;
     glEnable (GL_TEXTURE_2D);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -472,20 +463,26 @@ void renderScene() {
 }
 
 int main(int argc, char **argv) {
-    block = new Block(3);
+    block = new Block(8);
     Voxel* p = new (block->slot()) Voxel();
-    //Voxel* c = new (block->slot()) Voxel();
+    Voxel* c = new (block->slot()) Voxel();
+    Voxel* d = new (block->slot()) Voxel();
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
-    //new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
+    new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
+    new (block->slot()) Leaf(0xff, 0xff, 0x80, 0xff);
+    new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
 
     p->child = 1;
-    p->valid = 0x82;
-    p->leaf = 0x82;
-    /*
-    c->child = 2;
-    c->valid = 0x80;
-    c->leaf = 0x80;
-    */
+    p->valid = 0x88;
+    p->leaf = 0x00;
+
+    c->child = 3;
+    c->valid = 0x82;
+    c->leaf = 0x82;
+
+    d->child = 5;
+    d->valid = 0x82;
+    d->leaf = 0x82;
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
