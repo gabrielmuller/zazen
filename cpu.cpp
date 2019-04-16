@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <new>
 #include <limits>
+#include <cstring>
 
 #define WIDTH 256
 #define HEIGHT 256
@@ -254,7 +255,7 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(sin(time*2)*0.6, 0.9, -0.5), Vector(screen_x, screen_y, 1).normalized());
+    Ray ray(Vector(sin(time*2)*0.6, 0.9, -2), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
@@ -266,6 +267,8 @@ void render(unsigned char* pixel, int i, int j) {
     pixel[2] = 0x00;
 
     while (true) {
+        if (do_log)
+        printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
 
         const uint8_t oct = stack.peek().octant;
         bool valid = (stack.peek().voxel->valid >> oct) & 1;
@@ -273,12 +276,13 @@ void render(unsigned char* pixel, int i, int j) {
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
             Leaf* leaf = &block->get<Leaf>(stack.peek().voxel->address_of(oct));
-            printf("%lu ", stack.size());
             // XXX LEAF - RED
             if (ray.distance < 1.01) ray.distance = 1.01;
-            if (do_log) printf("Distance: %f", ray.distance);
+            if (do_log) printf("Distance: %f\n", ray.distance);
             float lightness = 1/(ray.distance * ray.distance);
             leaf->set_color(pixel, lightness);
+            if (do_log)
+            printf("Leaf painted %x %x %x\n", leaf->r, leaf->g, leaf->b);
             return;
         } 
 
@@ -425,12 +429,14 @@ void renderScene() {
 
     // render the texture here
 
-    printf("\n\n\n*************\n* FRAME %d *\n*************\n\n", t);
     fflush(stdout);
-    for (int  i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
-            unsigned char* pixel = texture[j][i];
+    for (int  i = 0; i < WIDTH/2; i++) {
+        for (int j = 0; j < HEIGHT/2; j++) {
+            unsigned char* pixel = texture[j*2][i*2];
             render(pixel, i, j);
+            memcpy(texture[j*2+1][i*2], pixel, 3 * sizeof(char));
+            memcpy(texture[j*2][i*2+1], pixel, 3 * sizeof(char));
+            memcpy(texture[j*2+1][i*2+1], pixel, 3 * sizeof(char));
         }
     }
 
@@ -473,7 +479,7 @@ int main(int argc, char **argv) {
     new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
 
     p->child = 1;
-    p->valid = 0x88;
+    p->valid = 0xc0;
     p->leaf = 0x00;
 
     c->child = 3;
