@@ -255,7 +255,7 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(sin(time*2)*0.6, 0.9, -2), Vector(screen_x, screen_y, 1).normalized());
+    Ray ray(Vector(sin(time*2)*0.6, 0.9, -0.9), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
@@ -266,9 +266,10 @@ void render(unsigned char* pixel, int i, int j) {
     pixel[1] = 0x00;
     pixel[2] = 0x00;
 
+    if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
+    if (do_log) printf("Debug pixel (%d, %d)\n", i / 32, j / 32);
+
     while (true) {
-        if (do_log)
-        printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
 
         const uint8_t oct = stack.peek().octant;
         bool valid = (stack.peek().voxel->valid >> oct) & 1;
@@ -299,6 +300,7 @@ void render(unsigned char* pixel, int i, int j) {
                         box.get_octant(ray),
                         box.corner);
 
+            if (do_log) printf("\nGo deeper, stack size now %d\n", stack.size());
             // XXX EVERY MARCH - SLIGHTLY GREENER
             pixel[1] += 0x20;
 
@@ -413,7 +415,7 @@ void render(unsigned char* pixel, int i, int j) {
             if (stack.empty()) {
                 /* Ray is outside root octree. */
                 // XXX EMPTY STACK AFTER LOOP - BLUE
-                pixel[2] = 0x60;
+                pixel[2] = 0xc0;
                 break;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
@@ -423,6 +425,14 @@ void render(unsigned char* pixel, int i, int j) {
             stack.peek().octant ^= hit_face;
         }
     }
+    if (do_log) {
+        pixel[0] = 0xff;
+        pixel[1] = 0x00;
+        pixel[2] = 0x00;
+    }
+    if (!(i / 32)) pixel[2] = 0xff;
+    if (!(j / 32)) pixel[1] = 0xff;
+
 }
 
 void renderScene() {    
@@ -479,7 +489,7 @@ int main(int argc, char **argv) {
     new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
 
     p->child = 1;
-    p->valid = 0xc0;
+    p->valid = 0x82;
     p->leaf = 0x00;
 
     c->child = 3;
