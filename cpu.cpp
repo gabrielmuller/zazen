@@ -198,6 +198,10 @@ struct VoxelStack {
         return top;
     }
 
+    inline void print() {
+        for (int i = 0; i < top; i++) printf("%d ", entries[i].octant);
+        printf("\n");
+    }
 };
 
 struct Block {
@@ -300,7 +304,7 @@ void render(unsigned char* pixel, int i, int j) {
                         box.get_octant(ray),
                         box.corner);
 
-            if (do_log) printf("\nGo deeper, stack size now %d\n", stack.size());
+            if (do_log) printf("\nGo deeper, stack size now %lu\n", stack.size());
             // XXX EVERY MARCH - SLIGHTLY GREENER
             pixel[1] += 0x20;
 
