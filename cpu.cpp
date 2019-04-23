@@ -199,8 +199,8 @@ struct VoxelStack {
     }
 
     inline void print() {
-        for (int i = 0; i < top; i++) printf("%d ", entries[i].octant);
-        printf("\n");
+        for (int i = 0; i < top; i++) printf("| %d ", entries[i].octant);
+        printf("|\n");
     }
 };
 
@@ -259,7 +259,7 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(sin(time*2)*0.6, 0.9, -0.9), Vector(screen_x, screen_y, 1).normalized());
+    Ray ray(Vector(sin(time * 0.2)*0.6, 0.9, -2), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
@@ -288,7 +288,7 @@ void render(unsigned char* pixel, int i, int j) {
             leaf->set_color(pixel, lightness);
             if (do_log)
             printf("Leaf painted %x %x %x\n", leaf->r, leaf->g, leaf->b);
-            return;
+            break;
         } 
 
         if (valid) {
@@ -396,7 +396,8 @@ void render(unsigned char* pixel, int i, int j) {
 
             if (do_log) {
                 printf("-------------\n");
-                printf("Before:size:    %lu\n", stack.size());
+                printf("Before: ");
+                stack.print();
                 printf("hit&~(oct^mask)=%d\n", hit_face & ~(stack.peek().octant ^ mask));
             }
             while (hit_face & ~(stack.peek().octant ^ mask)) {
@@ -412,9 +413,6 @@ void render(unsigned char* pixel, int i, int j) {
                 stack.pop();
                 box.size *= 2;
             }
-            if (do_log) {
-                printf("After:stk_size: %lu\n\n", stack.size());
-            }
 
             if (stack.empty()) {
                 /* Ray is outside root octree. */
@@ -427,16 +425,18 @@ void render(unsigned char* pixel, int i, int j) {
              * that was hit.
              */
             stack.peek().octant ^= hit_face;
+            if (do_log) {
+                printf("After: ", stack.size());
+                stack.print();
+            }
         }
     }
     if (do_log) {
         pixel[0] = 0xff;
         pixel[1] = 0x00;
         pixel[2] = 0x00;
+        if (i / 32 == 2 && j / 32 == 1) pixel[1] = 0xff;
     }
-    if (!(i / 32)) pixel[2] = 0xff;
-    if (!(j / 32)) pixel[1] = 0xff;
-
 }
 
 void renderScene() {    
