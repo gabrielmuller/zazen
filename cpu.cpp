@@ -120,24 +120,11 @@ struct Ray {
 struct AABB {
     /* Axis-aligned bounding box */
     Vector corner; // bottom leftmost back corner
-    float size;
 
-    explicit AABB(const Vector corner, const float size) : 
-        corner(corner), size(size) {}
+    explicit AABB(const Vector corner) : 
+        corner(corner) {}
 
-    inline bool contains(const Vector vector) const 
-    {
-        /* Check if vector is inside box */
-        return vector.x >= corner.x &&
-            vector.y >= corner.y &&
-            vector.z >= corner.z && 
-            vector.x < corner.x + size &&
-            vector.y < corner.y + size && 
-            vector.z < corner.z + size;
-    }
-
-    inline uint8_t get_octant
-        (Ray ray) const {
+    inline uint8_t get_octant (Ray ray, float size) const {
             /* Returns which octant the vector resides inside box. */
             uint8_t octant = 0;
             const float oct_size = size * 0.5;
@@ -165,10 +152,12 @@ struct StackEntry {
 struct VoxelStack {
     StackEntry* entries;
     size_t top;
+    float box_size;
 
-    explicit VoxelStack(const size_t size) {
+    explicit VoxelStack(const size_t size, const float init_box_size) {
         entries = new StackEntry[size];
         top = 0;
+        box_size = init_box_size;
     }
 
     ~VoxelStack() {
@@ -180,14 +169,12 @@ struct VoxelStack {
         top++;
     }
 
-    StackEntry& pop() {
-        /* call peek_oct before this if you need the octant position */
+    inline void pop() {
         top--;
-        return entries[top];
     }
 
-    inline StackEntry& peek() {
-        return entries[top - 1];
+    inline StackEntry* operator->() {
+        return entries + (top - 1);
     }
 
     inline bool empty() {
@@ -258,11 +245,11 @@ void render(unsigned char* pixel, int i, int j) {
     const float time = t / 60.0F;
 
     // start traverse on root voxel
-    AABB box(Vector(-1, -1, -1), 2);
+    AABB box(Vector(-1, -1, -1));
     Ray ray(Vector(sin(time)+0.5, cos(time)+0.5, -0.999), Vector(screen_x, screen_y, 1).normalized());
-    VoxelStack stack(20);
+    VoxelStack stack(20, 2.0);
     stack.push(&block->get<Voxel>(0),
-                box.get_octant(ray),
+                box.get_octant(ray, stack.box_size),
                 box.corner
                 );
 
@@ -275,12 +262,12 @@ void render(unsigned char* pixel, int i, int j) {
 
     while (true) {
 
-        const uint8_t oct = stack.peek().octant;
-        bool valid = (stack.peek().voxel->valid >> oct) & 1;
-        bool leaf = (stack.peek().voxel->leaf >> oct) & 1;
+        const uint8_t oct = stack->octant;
+        bool valid = (stack->voxel->valid >> oct) & 1;
+        bool leaf = (stack->voxel->leaf >> oct) & 1;
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            Leaf* leaf = &block->get<Leaf>(stack.peek().voxel->address_of(oct));
+            Leaf* leaf = &block->get<Leaf>(stack->voxel->address_of(oct));
             // XXX LEAF - RED
             if (ray.distance < 1.01) ray.distance = 1.01;
             if (do_log) printf("Distance: %f\n", ray.distance);
@@ -295,16 +282,16 @@ void render(unsigned char* pixel, int i, int j) {
             /* Go a level deeper. */
 
             // Adjust inferior corner
-            box.size *= 0.5;
-            if (oct & 4) box.corner.x += box.size;
-            if (oct & 2) box.corner.y += box.size;
-            if (oct & 1) box.corner.z += box.size;
+            stack.box_size *= 0.5;
+            if (oct & 4) box.corner.x += stack.box_size;
+            if (oct & 2) box.corner.y += stack.box_size;
+            if (oct & 1) box.corner.z += stack.box_size;
 
-            stack.push(&block->get<Voxel>(stack.peek().voxel->address_of(oct)),
-                        box.get_octant(ray),
+            stack.push(&block->get<Voxel>(stack->voxel->address_of(oct)),
+                        box.get_octant(ray, stack.box_size),
                         box.corner);
 
-            if (do_log) printf("\nGo deeper, stack size now %lu\n", stack.size());
+            if (do_log) printf("\nGo deeper\n"), stack.print();
             // XXX EVERY MARCH - SLIGHTLY GREENER
             pixel[1] += 0x20;
 
@@ -315,11 +302,11 @@ void render(unsigned char* pixel, int i, int j) {
 
             StackEntry child = {
                 nullptr,
-                box.get_octant(ray),
+                box.get_octant(ray, stack.box_size),
                 box.corner
             };
 
-            float child_size = box.size * 0.5;
+            float child_size = stack.box_size * 0.5;
 
             if (oct & 4) child.corner.x += child_size;
             if (oct & 2) child.corner.y += child_size;
@@ -373,7 +360,7 @@ void render(unsigned char* pixel, int i, int j) {
             printv(child.corner);
             printf("Box corner:    ");
             printv(box.corner);
-            printf("Box size:      %f\n", box.size);
+            printf("Box size:      %f\n", stack.box_size);
             printf("Ray direction: ");
             printv(ray.direction);
             printf("Centered:      ");
@@ -398,11 +385,11 @@ void render(unsigned char* pixel, int i, int j) {
                 printf("-------------\n");
                 printf("Before: ");
                 stack.print();
-                printf("hit&~(oct^mask)=%d\n", hit_face & ~(stack.peek().octant ^ mask));
+                printf("hit&~(oct^mask)=%d\n", hit_face & ~(stack->octant ^ mask));
             }
-            while (hit_face & ~(stack.peek().octant ^ mask)) {
+            while (hit_face & ~(stack->octant ^ mask)) {
                 if (do_log)
-                printf("Peek oct:       %d\n", stack.peek().octant);
+                printf("Peek oct:       %d\n", stack->octant);
                 if (stack.empty()) {
                     /* Ray is outside root octree. */
                     // XXX EMPTY STACK - DARK BLUE
@@ -411,8 +398,8 @@ void render(unsigned char* pixel, int i, int j) {
                 }
                 /* Hit face is at this voxel's boundary, search parent */
                 stack.pop();
-                box.size *= 2;
-                box.corner = stack.peek().corner;
+                stack.box_size *= 2;
+                box.corner = stack->corner;
             }
 
             if (stack.empty()) {
@@ -425,9 +412,9 @@ void render(unsigned char* pixel, int i, int j) {
              * Transfer to sibling voxel, changing on the axis of the face
              * that was hit.
              */
-            stack.peek().octant ^= hit_face;
+            stack->octant ^= hit_face;
             if (do_log) {
-                printf("After: ", stack.size());
+                printf("After: ", stack.box_size);
                 stack.print();
             }
         }
