@@ -259,7 +259,7 @@ void render(unsigned char* pixel, int i, int j) {
 
     // start traverse on root voxel
     AABB box(Vector(-1, -1, -1), 2);
-    Ray ray(Vector(sin(time * 0.2)*0.6, 0.9, -2), Vector(screen_x, screen_y, 1).normalized());
+    Ray ray(Vector(sin(time), 1, -0.9), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20);
     stack.push(&block->get<Voxel>(0),
                 box.get_octant(ray),
@@ -284,7 +284,7 @@ void render(unsigned char* pixel, int i, int j) {
             // XXX LEAF - RED
             if (ray.distance < 1.01) ray.distance = 1.01;
             if (do_log) printf("Distance: %f\n", ray.distance);
-            float lightness = 1/(ray.distance * ray.distance);
+            float lightness = 2/(ray.distance * ray.distance);
             leaf->set_color(pixel, lightness);
             if (do_log)
             printf("Leaf painted %x %x %x\n", leaf->r, leaf->g, leaf->b);
@@ -412,6 +412,7 @@ void render(unsigned char* pixel, int i, int j) {
                 /* Hit face is at this voxel's boundary, search parent */
                 stack.pop();
                 box.size *= 2;
+                box.corner = stack.peek().corner;
             }
 
             if (stack.empty()) {
@@ -490,7 +491,8 @@ int main(int argc, char **argv) {
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0x80, 0xff);
-    new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
+    Voxel* e = new (block->slot()) Voxel();
+    new (block->slot()) Leaf(0x33, 0x33, 0x33, 0xff);
 
     p->child = 1;
     p->valid = 0x82;
@@ -502,7 +504,11 @@ int main(int argc, char **argv) {
 
     d->child = 5;
     d->valid = 0x82;
-    d->leaf = 0x82;
+    d->leaf = 0x02;
+
+    e->child = 7;
+    e->valid = 0x80;
+    e->leaf = 0x80;
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
