@@ -251,7 +251,7 @@ struct Block {
 Block* block = nullptr;
 
 void render(unsigned char* pixel, int i, int j) {
-    bool do_log = !(i%32)&&!(j%32);
+    bool do_log = !((i+1)%(WIDTH/8))&&!((j+1)%(HEIGHT/8));
 
 
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
@@ -272,7 +272,7 @@ void render(unsigned char* pixel, int i, int j) {
     pixel[2] = 0x00;
 
     if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
-    if (do_log) printf("Debug pixel (%d, %d)\n", i / 32, j / 32);
+    if (do_log) printf("Debug pixel (%d, %d)\n", (i+1) / (WIDTH/8), (j+1) / (HEIGHT/8));
 
     while (true) {
 
@@ -312,10 +312,12 @@ void render(unsigned char* pixel, int i, int j) {
 
             Vector mirror_origin = ray.origin.mirror(mask);
             Vector mirror_direction = ray.direction.mirror(mask);
+            Vector mirror_corner = child_corner.mirror(mask);
+            mirror_corner.adjust_corner(-child_size, mask);
 
-            float tx = (child_corner.x - mirror_origin.x) / mirror_direction.x;
-            float ty = (child_corner.y - mirror_origin.y) / mirror_direction.y;
-            float tz = (child_corner.z - mirror_origin.z) / mirror_direction.z;
+            float tx = (mirror_corner.x - mirror_origin.x) / mirror_direction.x;
+            float ty = (mirror_corner.y - mirror_origin.y) / mirror_direction.y;
+            float tz = (mirror_corner.z - mirror_origin.z) / mirror_direction.z;
             float t = std::numeric_limits<float>::infinity();
 
             /* Detect which face hit. */
@@ -400,14 +402,13 @@ void render(unsigned char* pixel, int i, int j) {
             }
         }
     }
-    /*
     if (do_log) {
         pixel[0] = 0xff;
         pixel[1] = 0x00;
         pixel[2] = 0x00;
-        if (i / 32 == 2 && j / 32 == 1) pixel[1] = 0xff;
+        int u = WIDTH / 8;
+        if ((i+1) / u == 4 && (j+1) / u == 4) pixel[1] = 0xff;
     }
-    */
 }
 
 void renderScene() {    
