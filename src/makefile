@@ -1,6 +1,6 @@
 all:
-	g++ -O3 -ffast-math cpu.cpp -lglut -lGLU -lGL -lm
-	./a.out > log
+	g++ -O3 -ffast-math main.cpp -lglut -lGLU -lGL -lm -o zazen
+	./zazen > log
 	#nvcc -lglut -lGL -lGLU -o zazen *.cu
 	#./zazen
 

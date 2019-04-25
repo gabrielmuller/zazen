@@ -6,247 +6,17 @@
 #include <limits>
 #include <cstring>
 
+#include "leaf.cpp"
+#include "ray.cpp"
+#include "stack.cpp"
+#include "block.cpp"
+
 #define WIDTH 512
 #define HEIGHT 512
 
-const float e = std::numeric_limits<float>::epsilon() * 1;
 const float fov = 1; // 1 -> 90 degrees
 unsigned char texture[WIDTH][HEIGHT][3];             
 int t = 0;
-
-struct Voxel {
-    /* Non-leaf voxel. */
-
-    // 15 high bits: relative child pointer
-    // 1 lowest bit: far flag TODO
-    uint16_t child;
-    uint8_t valid; // 8 flags of whether children are visible
-    uint8_t leaf;  // 8 flags of whether children are leaves
-
-    size_t address_of(uint8_t octant) {
-        /* Get address in block of child octant. */
-        size_t address = child;
-        for (int i = 0; i < octant; i++) {
-            if ((1 << i) & (valid | leaf)) address++;
-        }
-        return address;
-    }
-
-};
-
-struct Leaf {
-    /* Leaf voxel. */
-
-    uint8_t r, g, b, a;
-
-    Leaf() = default;
-
-    Leaf(uint8_t r, uint8_t g, uint8_t b, uint8_t a) :
-        r(r), g(g), b(b), a(a) {}
-
-    inline void set_color(unsigned char* pixel, float lightness) const {
-        pixel[0] = r * lightness;
-        pixel[1] = g * lightness;
-        pixel[2] = b * lightness;
-    }
-};
-
-struct Vector {
-    /* Simple container struct for a 3D vector. */
-    float x, y, z;
-    Vector() = default;
-    explicit Vector(float x, float y, float z) :
-        x(x), y(y), z(z) {}
-
-    Vector(const Vector& v) : Vector(v.x, v.y, v.z) {}
-
-    inline float magnitude() const {
-        return sqrtf(x*x + y*y + z*z);
-    }
-
-    Vector& normalized() {
-        float invmag = 1 / magnitude();
-        x *= invmag;
-        y *= invmag;
-        z *= invmag;
-        return *this;
-    }
-
-    Vector mirror(uint8_t mask) const {
-        float mirror_x = mask & 4 ? -x : x;
-        float mirror_y = mask & 2 ? -y : y;
-        float mirror_z = mask & 1 ? -z : z;
-        return Vector(mirror_x, mirror_y, mirror_z);
-    }
-
-    inline void print() {
-        printf("(%f, %f, %f) %f\n", x, y, z, magnitude());
-    }
-
-    void adjust_corner(float size, uint8_t octant) {
-        if (octant & 4) x += size;
-        if (octant & 2) y += size;
-        if (octant & 1) z += size;
-    }
-};
-
-struct Ray {
-    /* Simple container class for a ray. */
-    Vector origin, direction, negdir;
-    float distance;
-
-    explicit Ray(const Vector origin, Vector direction) :
-        origin(origin), distance(0) {
-            if (fabsf(direction.x) < e) direction.x = copysignf(e, direction.x);
-            if (fabsf(direction.y) < e) direction.y = copysignf(e, direction.y);
-            if (fabsf(direction.z) < e) direction.z = copysignf(e, direction.z);
-            this->direction = direction;
-        }
-
-    uint8_t octant_mask() {
-        uint8_t mask = 0;
-        if (direction.x >= 0) mask ^= 4;
-        if (direction.y >= 0) mask ^= 2;
-        if (direction.z >= 0) mask ^= 1;
-        return mask;
-    }
-
-    Ray march(float amount) {
-        Vector diff(direction.x * amount,
-                    direction.y * amount,
-                    direction.z * amount); 
-
-        origin.x += diff.x;
-        origin.y += diff.y;
-        origin.z += diff.z;
-        distance += diff.magnitude();
-
-        return *this;
-    }
-};
-
-struct StackEntry {
-    Voxel* voxel;   // pointer to voxel in Block
-    uint8_t octant; // octant ray origin is in this voxel
-    Vector corner;  // inferior corner
-};
-
-struct VoxelStack {
-    StackEntry* entries;
-    size_t top;
-    float box_size;
-
-    explicit VoxelStack(const size_t size, const float init_box_size) {
-        entries = new StackEntry[size];
-        top = 0;
-        box_size = init_box_size;
-    }
-
-    ~VoxelStack() {
-        delete[] entries;
-    }
-
-    void push(Voxel* voxel, Ray ray) {
-        entries[top] = {voxel, 0, peek().corner};
-        box_size *= 0.5;
-        entries[top].corner.adjust_corner(box_size, peek().octant);
-        top++;
-        peek().octant = get_octant(ray);
-    }
-
-    void push_root(Voxel* voxel, Vector corner, Ray ray) {
-        entries[top] = {voxel, 0, corner};
-        top++;
-        peek().octant = get_octant(ray);
-    }
-
-    inline void pop() {
-        box_size *= 2;
-        top--;
-    }
-
-    inline StackEntry* operator->() const {
-        return entries + (top - 1);
-    }
-
-    inline StackEntry& peek() const {
-        return *operator->();
-    }
-
-    inline bool empty() {
-        return !top;
-    }
-
-    inline size_t size() {
-        return top;
-    }
-
-    inline uint8_t get_octant (Ray ray) const {
-        /* Returns which octant the vector resides inside box. */
-        uint8_t octant = 0;
-        const float oct_size = box_size * 0.5;
-        Vector& corner = peek().corner;
-
-        // If point is at border, adjust according to ray direction
-        while (ray.origin.x == corner.x + oct_size ||
-               ray.origin.y == corner.y + oct_size ||
-               ray.origin.z == corner.z + oct_size) {
-            ray.march(e * 1000);
-        }
-
-        if (ray.origin.x > corner.x + oct_size) octant ^= 4;
-        if (ray.origin.y > corner.y + oct_size) octant ^= 2;
-        if (ray.origin.z > corner.z + oct_size) octant ^= 1;
-        return octant;
-    }
-
-    inline void print() {
-        for (int i = 0; i < top; i++) printf("| %d ", entries[i].octant);
-        printf("|\n");
-    }
-};
-
-struct Block {
-    static const std::size_t element_size = 4;
-    const size_t element_count;
-    char* data = nullptr;
-    char* front = nullptr;
-
-    explicit Block(size_t element_count, char* data) :
-        element_count(element_count),
-        data(data) {
-            front = data;
-        }
-
-    explicit Block(size_t element_count) : element_count(element_count) {
-        data = new char[element_count * element_size];
-        front = data;
-    }
-
-    ~Block() {
-        delete[] data;
-    }
-
-    Block(Block&) = delete; // No copy constructor.
-    Block& operator=(Block&) = delete; // No assigning.
-    Block(Block&& rhs) = delete; // No move constructor.
-    Block& operator=(Block&& rhs) = delete; // No move assignment operator.
-
-    template <class T>
-    T& get(const std::size_t index) const {
-        return ((T*) data)[index];
-    }
-
-    char* slot() {
-        char* front_slot = front;
-        front += element_size;
-        return front_slot;
-    }
-
-    size_t size() {
-        return element_count * element_size;
-    }
-};
 
 Block* block = nullptr;
 
@@ -260,19 +30,19 @@ void render(unsigned char* pixel, int i, int j) {
     const float time = t / 60.0F;
 
     // start traverse on root voxel
-    Ray ray(Vector(sin(time)+0.5, cos(time)+0.5, -0.999), Vector(screen_x, screen_y, 1).normalized());
+    Vector origin(sin(time), cos(time), -0.999);
+    Vector direction(screen_x, screen_y, 1);
+
+    Ray ray(origin, direction);
+
     VoxelStack stack(20, 2.0);
-    stack.push_root(&block->get<Voxel>(0),
-                Vector(-1, -1, -1),
-                ray
-                );
+    stack.push_root(&block->get<Voxel>(0), Vector(-1, -1, -1), ray);
 
     pixel[0] = 0x00;
     pixel[1] = 0x00;
     pixel[2] = 0x00;
 
     if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
-    if (do_log) printf("Debug pixel (%d, %d)\n", (i+1) / (WIDTH/8), (j+1) / (HEIGHT/8));
 
     while (true) {
 
@@ -401,13 +171,6 @@ void render(unsigned char* pixel, int i, int j) {
                 stack.print();
             }
         }
-    }
-    if (do_log) {
-        pixel[0] = 0xff;
-        pixel[1] = 0x00;
-        pixel[2] = 0x00;
-        int u = WIDTH / 8;
-        if ((i+1) / u == 4 && (j+1) / u == 4) pixel[1] = 0xff;
     }
 }
 
