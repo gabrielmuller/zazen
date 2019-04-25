@@ -307,24 +307,11 @@ void render(unsigned char* pixel, int i, int j) {
             Vector child_corner(stack->corner);
 
             float child_size = stack.box_size * 0.5;
-
             child_corner.adjust_corner(child_size, oct);
-
-            Vector centered(ray.origin.x - (child_corner.x + child_size * 0.5), 
-                            ray.origin.y - (child_corner.y + child_size * 0.5), 
-                            ray.origin.z - (child_corner.z + child_size * 0.5)  
-            );
-
             uint8_t mask = ray.octant_mask();
-            Vector mirror_direction = ray.direction.mirror(mask);
-            Vector mirror_origin = centered.mirror(mask);
-            if (do_log) {
-                printf("Mask %d, Center mirror: ", mask); mirror_origin.print();
-            }
 
-            mirror_origin.x += (child_corner.x + child_size * 0.5);
-            mirror_origin.y += (child_corner.y + child_size * 0.5);
-            mirror_origin.z += (child_corner.z + child_size * 0.5);
+            Vector mirror_origin = ray.origin.mirror(mask);
+            Vector mirror_direction = ray.direction.mirror(mask);
 
             float tx = (child_corner.x - mirror_origin.x) / mirror_direction.x;
             float ty = (child_corner.y - mirror_origin.y) / mirror_direction.y;
@@ -361,8 +348,6 @@ void render(unsigned char* pixel, int i, int j) {
             printf("stack-> size:      %f\n", stack.box_size);
             printf("Ray direction: ");
             ray.direction.print();
-            printf("Centered:      ");
-            centered.print();
             printf("Mirror directi:");
             mirror_direction.print();
             printf("Ray origin:    ");
