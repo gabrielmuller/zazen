@@ -31,6 +31,7 @@ struct Voxel {
         }
         return address;
     }
+
 };
 
 struct Leaf {
@@ -80,6 +81,12 @@ struct Vector {
 
     inline void print() {
         printf("(%f, %f, %f) %f\n", x, y, z, magnitude());
+    }
+
+    void adjust_corner(float size, uint8_t octant) {
+        if (octant & 4) x += size;
+        if (octant & 2) y += size;
+        if (octant & 1) z += size;
     }
 };
 
@@ -142,11 +149,7 @@ struct VoxelStack {
     void push(Voxel* voxel, Ray ray) {
         entries[top] = {voxel, 0, peek().corner};
         box_size *= 0.5;
-
-        if (peek().octant & 4) entries[top].corner.x += box_size;
-        if (peek().octant & 2) entries[top].corner.y += box_size;
-        if (peek().octant & 1) entries[top].corner.z += box_size;
-
+        entries[top].corner.adjust_corner(box_size, peek().octant);
         top++;
         peek().octant = get_octant(ray);
     }
@@ -301,22 +304,15 @@ void render(unsigned char* pixel, int i, int j) {
             /* Ray origin is in invalid voxel, cast ray until it hits next
              * voxel. 
              */
-
-            StackEntry child = {
-                nullptr,
-                0,
-                stack->corner
-            };
+            Vector child_corner(stack->corner);
 
             float child_size = stack.box_size * 0.5;
 
-            if (oct & 4) child.corner.x += child_size;
-            if (oct & 2) child.corner.y += child_size;
-            if (oct & 1) child.corner.z += child_size;
+            child_corner.adjust_corner(child_size, oct);
 
-            Vector centered(ray.origin.x - (child.corner.x + child_size * 0.5), 
-                            ray.origin.y - (child.corner.y + child_size * 0.5), 
-                            ray.origin.z - (child.corner.z + child_size * 0.5)  
+            Vector centered(ray.origin.x - (child_corner.x + child_size * 0.5), 
+                            ray.origin.y - (child_corner.y + child_size * 0.5), 
+                            ray.origin.z - (child_corner.z + child_size * 0.5)  
             );
 
             uint8_t mask = ray.octant_mask();
@@ -326,13 +322,13 @@ void render(unsigned char* pixel, int i, int j) {
                 printf("Mask %d, Center mirror: ", mask); mirror_origin.print();
             }
 
-            mirror_origin.x += (child.corner.x + child_size * 0.5);
-            mirror_origin.y += (child.corner.y + child_size * 0.5);
-            mirror_origin.z += (child.corner.z + child_size * 0.5);
+            mirror_origin.x += (child_corner.x + child_size * 0.5);
+            mirror_origin.y += (child_corner.y + child_size * 0.5);
+            mirror_origin.z += (child_corner.z + child_size * 0.5);
 
-            float tx = (child.corner.x - mirror_origin.x) / mirror_direction.x;
-            float ty = (child.corner.y - mirror_origin.y) / mirror_direction.y;
-            float tz = (child.corner.z - mirror_origin.z) / mirror_direction.z;
+            float tx = (child_corner.x - mirror_origin.x) / mirror_direction.x;
+            float ty = (child_corner.y - mirror_origin.y) / mirror_direction.y;
+            float tz = (child_corner.z - mirror_origin.z) / mirror_direction.z;
             float t = std::numeric_limits<float>::infinity();
 
             /* Detect which face hit. */
@@ -359,7 +355,7 @@ void render(unsigned char* pixel, int i, int j) {
             if (do_log){
             printf("Pixel (x, y):  (%d, %d)\n", i, j);
             printf("Child box corn:");
-            child.corner.print();
+            child_corner.print();
             printf("Box corner:    ");
             stack->corner.print();
             printf("stack-> size:      %f\n", stack.box_size);
