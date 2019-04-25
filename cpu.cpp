@@ -6,8 +6,8 @@
 #include <limits>
 #include <cstring>
 
-#define WIDTH 256
-#define HEIGHT 256
+#define WIDTH 512
+#define HEIGHT 512
 
 const float e = std::numeric_limits<float>::epsilon() * 1;
 const float fov = 1; // 1 -> 90 degrees
@@ -121,26 +121,8 @@ struct AABB {
     /* Axis-aligned bounding box */
     Vector corner; // bottom leftmost back corner
 
-    explicit AABB(const Vector corner) : 
-        corner(corner) {}
+    explicit AABB(const Vector corner) : corner(corner) {}
 
-    inline uint8_t get_octant (Ray ray, float size) const {
-            /* Returns which octant the vector resides inside box. */
-            uint8_t octant = 0;
-            const float oct_size = size * 0.5;
-
-            // If point is at border, adjust according to ray direction
-            while (ray.origin.x == corner.x + oct_size ||
-                   ray.origin.y == corner.y + oct_size ||
-                   ray.origin.z == corner.z + oct_size) {
-                ray.march(e * 100);
-            }
-
-            if (ray.origin.x > corner.x + oct_size) octant ^= 4;
-            if (ray.origin.y > corner.y + oct_size) octant ^= 2;
-            if (ray.origin.z > corner.z + oct_size) octant ^= 1;
-            return octant;
-        }
 };
 
 struct StackEntry {
@@ -173,7 +155,7 @@ struct VoxelStack {
         top--;
     }
 
-    inline StackEntry* operator->() {
+    inline StackEntry* operator->() const {
         return entries + (top - 1);
     }
 
@@ -183,6 +165,25 @@ struct VoxelStack {
 
     inline size_t size() {
         return top;
+    }
+
+    inline uint8_t get_octant (Ray ray) const {
+        /* Returns which octant the vector resides inside box. */
+        uint8_t octant = 0;
+        const float oct_size = box_size * 0.5;
+        Vector& corner = operator->()->corner;
+
+        // If point is at border, adjust according to ray direction
+        while (ray.origin.x == corner.x + oct_size ||
+               ray.origin.y == corner.y + oct_size ||
+               ray.origin.z == corner.z + oct_size) {
+            ray.march(e * 1000);
+        }
+
+        if (ray.origin.x > corner.x + oct_size) octant ^= 4;
+        if (ray.origin.y > corner.y + oct_size) octant ^= 2;
+        if (ray.origin.z > corner.z + oct_size) octant ^= 1;
+        return octant;
     }
 
     inline void print() {
@@ -249,9 +250,10 @@ void render(unsigned char* pixel, int i, int j) {
     Ray ray(Vector(sin(time)+0.5, cos(time)+0.5, -0.999), Vector(screen_x, screen_y, 1).normalized());
     VoxelStack stack(20, 2.0);
     stack.push(&block->get<Voxel>(0),
-                box.get_octant(ray, stack.box_size),
+                0,
                 box.corner
                 );
+    stack->octant = stack.get_octant(ray);
 
     pixel[0] = 0x00;
     pixel[1] = 0x00;
@@ -283,13 +285,15 @@ void render(unsigned char* pixel, int i, int j) {
 
             // Adjust inferior corner
             stack.box_size *= 0.5;
-            if (oct & 4) box.corner.x += stack.box_size;
-            if (oct & 2) box.corner.y += stack.box_size;
-            if (oct & 1) box.corner.z += stack.box_size;
+            Vector child_corner(stack->corner);
+            if (oct & 4) child_corner.x += stack.box_size;
+            if (oct & 2) child_corner.y += stack.box_size;
+            if (oct & 1) child_corner.z += stack.box_size;
 
             stack.push(&block->get<Voxel>(stack->voxel->address_of(oct)),
-                        box.get_octant(ray, stack.box_size),
-                        box.corner);
+                        0,
+                        child_corner);
+            stack->octant = stack.get_octant(ray);
 
             if (do_log) printf("\nGo deeper\n"), stack.print();
             // XXX EVERY MARCH - SLIGHTLY GREENER
@@ -302,8 +306,8 @@ void render(unsigned char* pixel, int i, int j) {
 
             StackEntry child = {
                 nullptr,
-                box.get_octant(ray, stack.box_size),
-                box.corner
+                0,
+                stack->corner
             };
 
             float child_size = stack.box_size * 0.5;
@@ -359,8 +363,8 @@ void render(unsigned char* pixel, int i, int j) {
             printf("Child box corn:");
             printv(child.corner);
             printf("Box corner:    ");
-            printv(box.corner);
-            printf("Box size:      %f\n", stack.box_size);
+            printv(stack->corner);
+            printf("stack-> size:      %f\n", stack.box_size);
             printf("Ray direction: ");
             printv(ray.direction);
             printf("Centered:      ");
@@ -399,7 +403,6 @@ void render(unsigned char* pixel, int i, int j) {
                 /* Hit face is at this voxel's boundary, search parent */
                 stack.pop();
                 stack.box_size *= 2;
-                box.corner = stack->corner;
             }
 
             if (stack.empty()) {
