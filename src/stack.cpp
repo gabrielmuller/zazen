@@ -65,13 +65,6 @@ struct VoxelStack {
         const float oct_size = box_size * 0.5;
         Vector& corner = peek().corner;
 
-        // If point is at border, adjust according to ray direction
-        while (ray.origin.x == corner.x + oct_size ||
-               ray.origin.y == corner.y + oct_size ||
-               ray.origin.z == corner.z + oct_size) {
-            ray.march(e * 1000);
-        }
-
         if (ray.origin.x > corner.x + oct_size) octant ^= 4;
         if (ray.origin.y > corner.y + oct_size) octant ^= 2;
         if (ray.origin.z > corner.z + oct_size) octant ^= 1;

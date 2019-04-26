@@ -22,6 +22,7 @@ Block* block = nullptr;
 
 void render(unsigned char* pixel, int i, int j) {
     bool do_log = !((i+1)%(WIDTH/8))&&!((j+1)%(HEIGHT/8));
+    do_log |= !i && !j;
 
 
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
@@ -30,7 +31,7 @@ void render(unsigned char* pixel, int i, int j) {
     const float time = t / 60.0F;
 
     // start traverse on root voxel
-    Vector origin(sin(time), cos(time), -0.999);
+    Vector origin(sin(time), cos(time), -1.999);
     Vector direction(screen_x, screen_y, 1);
 
     Ray ray(origin, direction);
@@ -55,7 +56,7 @@ void render(unsigned char* pixel, int i, int j) {
             // XXX LEAF - RED
             if (ray.distance < 1.01) ray.distance = 1.01;
             if (do_log) printf("Distance: %f\n", ray.distance);
-            float lightness = 1/(ray.distance * ray.distance);
+            float lightness = 3/(ray.distance * ray.distance);
             leaf->set_color(pixel, lightness);
             if (do_log)
             printf("Leaf painted %x %x %x\n", leaf->r, leaf->g, leaf->b);
@@ -142,15 +143,9 @@ void render(unsigned char* pixel, int i, int j) {
                 stack.print();
                 printf("hit&~(oct^mask)=%d\n", hit_face & ~(stack->octant ^ mask));
             }
-            while (hit_face & ~(stack->octant ^ mask)) {
+            while (hit_face & ~(stack->octant ^ mask) && !stack.empty()) {
                 if (do_log)
                 printf("Peek oct:       %d\n", stack->octant);
-                if (stack.empty()) {
-                    /* Ray is outside root octree. */
-                    // XXX EMPTY STACK - DARK BLUE
-                    pixel[2] = 0x40;
-                    break;
-                }
                 /* Hit face is at this voxel's boundary, search parent */
                 stack.pop();
             }
@@ -179,13 +174,11 @@ void renderScene() {
     // render the texture here
 
     fflush(stdout);
-    for (int  i = 0; i < WIDTH/2; i++) {
-        for (int j = 0; j < HEIGHT/2; j++) {
-            unsigned char* pixel = texture[j*2][i*2];
-            render(pixel, i, j);
-            memcpy(texture[j*2+1][i*2], pixel, 3 * sizeof(char));
-            memcpy(texture[j*2][i*2+1], pixel, 3 * sizeof(char));
-            memcpy(texture[j*2+1][i*2+1], pixel, 3 * sizeof(char));
+
+    #pragma omp parallel for
+    for (int  i = 0; i < WIDTH; i++) {
+        for (int j = 0; j < HEIGHT; j++) {
+            render(texture[j][i], i, j);
         }
     }
 
