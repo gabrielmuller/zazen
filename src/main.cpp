@@ -31,7 +31,7 @@ void render(unsigned char* pixel, int i, int j) {
     const float time = t / 60.0F;
 
     // start traverse on root voxel
-    Vector origin(sin(time), cos(time), -1.999);
+    Vector origin(sin(time)*0.999, cos(time)*0.999, sin(time/2)-2);
     Vector direction(screen_x, screen_y, 1);
 
     Ray ray(origin, direction);
@@ -39,8 +39,8 @@ void render(unsigned char* pixel, int i, int j) {
     VoxelStack stack(20, 2.0);
     stack.push_root(&block->get<Voxel>(0), Vector(-1, -1, -1), ray);
 
-    pixel[0] = 0x00;
-    pixel[1] = 0x00;
+    pixel[0] = 0x33;
+    pixel[1] = 0x33;
     pixel[2] = 0x00;
 
     if (do_log) printf("\n\n\n*************\n* NEW FRAME *\n*************\n\n");
@@ -54,9 +54,11 @@ void render(unsigned char* pixel, int i, int j) {
             /* Ray origin is inside leaf voxel, render leaf. */
             Leaf* leaf = &block->get<Leaf>(stack->voxel->address_of(oct));
             // XXX LEAF - RED
-            if (ray.distance < 1.01) ray.distance = 1.01;
+            //if (ray.distance < 1.01) ray.distance = 1.01;
             if (do_log) printf("Distance: %f\n", ray.distance);
-            float lightness = 3/(ray.distance * ray.distance);
+            ray.distance *= 0.5;
+            ray.distance += 1;
+            float lightness = 2/(ray.distance * ray.distance);
             leaf->set_color(pixel, lightness);
             if (do_log)
             printf("Leaf painted %x %x %x\n", leaf->r, leaf->g, leaf->b);
@@ -69,7 +71,7 @@ void render(unsigned char* pixel, int i, int j) {
 
             if (do_log) printf("\nGo deeper\n"), stack.print();
             // XXX EVERY MARCH - SLIGHTLY GREENER
-            pixel[1] += 0x20;
+            pixel[1] += 0x30;
 
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits next
@@ -211,16 +213,18 @@ void renderScene() {
 }
 
 int main(int argc, char **argv) {
-    block = new Block(9);
+    block = new Block(11);
     Voxel* p = new (block->slot()) Voxel();
     Voxel* c = new (block->slot()) Voxel();
     new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
     Voxel* d = new (block->slot()) Voxel();
-    new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
+    new (block->slot()) Leaf(0xff, 0x88, 0x11, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
-    new (block->slot()) Leaf(0xff, 0xff, 0x80, 0xff);
+    new (block->slot()) Leaf(0x00, 0xff, 0x80, 0xff);
     Voxel* e = new (block->slot()) Voxel();
     new (block->slot()) Leaf(0xff, 0x33, 0x33, 0xff);
+    new (block->slot()) Leaf(0xff, 0xaa, 0xaa, 0xff);
+    new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
 
     p->child = 1;
     p->valid = 0x8a;
@@ -235,8 +239,8 @@ int main(int argc, char **argv) {
     d->leaf = 0x02;
 
     e->child = 8;
-    e->valid = 0x02;
-    e->leaf = 0x02;
+    e->valid = 0xa2;
+    e->leaf = 0xa2;
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
