@@ -19,18 +19,19 @@ const std::string base_path(std::string("..") + sep + std::string("models"));
 struct StanfordModel : Model {
   public:
     uint16_t** data;
-    unsigned int width, height, depth;
     StanfordModel(std::string name, 
             unsigned int width, unsigned int height, unsigned int depth) 
-            : width(width), height(height), depth(depth) {
+            : Model(width, height, depth) {
         data = read_model(name, depth);
     }
-    Leaf get(unsigned int x, unsigned int y, unsigned int z) {
+
+    Leaf get(unsigned int x, unsigned int y, unsigned int z) const override {
         uint16_t value = data[z][y * width + x];
         value /= 256;
         return Leaf(value, value, value, 0xff);
     }
-    ~StanfordModel() {
+
+    ~StanfordModel() override {
         for (int i = 0; i < depth; i++) {
             delete[] data[i];
         }
