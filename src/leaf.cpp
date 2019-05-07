@@ -17,4 +17,8 @@ struct Leaf {
         pixel[1] = g * lightness;
         pixel[2] = b * lightness;
     }
+
+    inline bool operator!=(Leaf& o) {
+        return r != o.r || g != o.g || b != o.b || a != o.a;
+    }
 };
