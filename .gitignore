@@ -3,4 +3,5 @@
 *log
 .*.sw*
 .gdbinit
-zazen
+*.bin
+models/*

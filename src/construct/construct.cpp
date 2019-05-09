@@ -1,8 +1,9 @@
 #pragma once
 
+#include <iostream>
 #include "model.cpp"
-#include "block.cpp"
-#include "leaf.cpp"
+#include "../render/block.cpp"
+#include "../render/leaf.cpp"
 
 struct Node;
 
@@ -22,8 +23,8 @@ struct Node {
     };
 };
 
-Node* traverse(int size, int x, int y, int z, const Model& model) {
-    printf("Traverse size %d (%d, %d, %d)\n", size, x, y, z);
+int count = 0;
+Node* create_tree(int size, int x, int y, int z, const Model& model) {
     if (x >= model.width || y >= model.height || z >= model.depth) {
         // invalid node
         return new Node();
@@ -39,13 +40,14 @@ Node* traverse(int size, int x, int y, int z, const Model& model) {
         int xi = 4 & i ? x : x + size / 2;
         int yi = 4 & i ? y : y + size / 2;
         int zi = 4 & i ? z : z + size / 2;
-        in.children[i] = traverse(size / 2, xi, yi, zi, model);
+        in.children[i] = create_tree(size / 2, xi, yi, zi, model);
     }
 
     for (int i = 1; i < 8; i++) {
         if (in.children[0]->tag != in.children[i]->tag ||
             in.children[i]->tag == Node::INTERNAL) {
             // children of different nature or internal
+            count++;
             return new Node(in);
         }
     }
@@ -73,9 +75,25 @@ Node* traverse(int size, int x, int y, int z, const Model& model) {
     return new Node(in);
 }
 
+unsigned int flatten_tree(InternalNode* in, Block* block, unsigned int offset) {
+    for (int i = 0; i < 8; i++) {
+        const Node& child = *(in->children[i]);
+        switch child.tag {
+            case Node::LEAF:
+                new (block->slot()) Leaf(child.leaf);
+                return ++offset;
+            case Node::INTERNAL:
+                //TODO
+                break;
+        }
+    }
+    return 0;
+}
         
-Block* construct(const Model& model) {
-    printf("Construct model (%d, %d, %d)\n", model.width, model.height, model.depth);
-    traverse(512, 0, 0, 0, model);
+Block* construct(Model& model) {
+    Node* root = create_tree(512, 0, 0, 0, model);
+    delete model;
+    printf("count %d\n", count);
+    block = new Block(count);
     return nullptr;
 }

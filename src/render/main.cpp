@@ -212,10 +212,7 @@ void renderScene() {
     glutPostRedisplay();
 }
 
-#include "construct.cpp"
-#include "stanford.cpp"
 int main(int argc, char **argv) {
-    construct(bunny());
 
     block = new Block(11);
     Voxel* p = new (block->slot()) Voxel();

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstddef>
+#include "../render/leaf.cpp"
+
 struct Model {
     unsigned int width, height, depth;
     Model(unsigned int width, unsigned int height, unsigned int depth) 

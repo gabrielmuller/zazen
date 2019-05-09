@@ -3,8 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
-#include "leaf.cpp"
 #include "model.cpp"
+#include "../render/leaf.cpp"
 
 const char sep =
 #ifdef _WIN32
