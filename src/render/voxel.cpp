@@ -5,8 +5,6 @@
 struct Voxel {
     /* Non-leaf voxel. */
 
-    // 15 high bits: relative child pointer
-    // 1 lowest bit: far flag TODO
     uint16_t child;
     uint8_t valid; // 8 flags of whether children are visible
     uint8_t leaf;  // 8 flags of whether children are leaves

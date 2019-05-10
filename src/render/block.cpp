@@ -1,11 +1,14 @@
 #pragma once
 
 struct Block {
+  private:
     static const std::size_t element_size = 4;
     const size_t element_count;
     char* data = nullptr;
     char* front = nullptr;
+    size_t front_index = 0;
 
+  public:
     explicit Block(size_t element_count, char* data) :
         element_count(element_count),
         data(data) {
@@ -34,10 +37,15 @@ struct Block {
     char* slot() {
         char* front_slot = front;
         front += element_size;
+        front_index++;
         return front_slot;
     }
 
     size_t size() {
+        return front_index;
+    }
+
+    size_t capacity() {
         return element_count * element_size;
     }
 };

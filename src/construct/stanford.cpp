@@ -21,14 +21,16 @@ struct StanfordModel : Model {
     uint16_t** data;
     StanfordModel(std::string name, 
             unsigned int width, unsigned int height, unsigned int depth) 
-            : Model(width, height, depth) {
+            : Model(name, width, height, depth) {
         data = read_model(name, depth);
     }
 
     Leaf get(unsigned int x, unsigned int y, unsigned int z) const override {
         uint16_t value = data[z][y * width + x];
-        value /= 256;
-        return Leaf(value, value, value, 0xff);
+        // quantize to (0, 16, 32..240)
+        value /= 256 * 16;
+        value *= 16;
+        return Leaf(value, value, value, value);
     }
 
     ~StanfordModel() override {
@@ -62,6 +64,6 @@ struct StanfordModel : Model {
     }
 };
 
-StanfordModel bunny() {
-    return StanfordModel("bunny", 512, 512, 316);
+StanfordModel* bunny() {
+    return new StanfordModel("bunny", 512, 512, 316);
 }
