@@ -5,12 +5,15 @@
 #include "../render/leaf.cpp"
 
 struct Model {
-    unsigned int width, height, depth;
+    const unsigned int width, height, depth;
+    const std::string name;
+
     Model(std::string name, 
             unsigned int width, unsigned int height, unsigned int depth) 
-            : width(width), height(height), depth(depth) {
-        std::cout << "Model \"" << name << "\" read from file." << std::endl;
+            : width(width), height(height), depth(depth), name(name) {
+        std::cout << "Reading model \"" << name << "\" from file...\n";
     }
+
     virtual Leaf get(unsigned int x, unsigned int y, unsigned int z) const = 0;
     virtual ~Model() {}
 };

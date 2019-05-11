@@ -218,6 +218,8 @@ void renderScene() {
 
 int main(int argc, char **argv) {
 
+    block = from_file("bunny");
+    /*
     block = new Block(4700000);
     Voxel* p = new (block->slot()) Voxel();
     p->child = block->size();
@@ -258,6 +260,7 @@ int main(int argc, char **argv) {
     d->child = voxel_bunny->child;
     d->valid = voxel_bunny->valid;
     d->leaf = voxel_bunny->leaf;
+    */
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);

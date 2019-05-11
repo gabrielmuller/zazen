@@ -155,3 +155,7 @@ Voxel* construct(Model* model, Block* block, Voxel* root_voxel) {
               << block->capacity() << ")\n";
     return root_voxel;
 }
+
+inline void construct(Model* model, Block* block) {
+    construct(model, block, new (block->slot()) Voxel());
+}

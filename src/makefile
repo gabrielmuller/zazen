@@ -1,4 +1,4 @@
-all: clean render.bin
+all: clean construct.bin render.bin
 
 clean:
 	rm -f *.bin
@@ -9,6 +9,7 @@ render.bin:
 
 construct.bin:
 	g++ -O3 construct/main.cpp -fopenmp -o construct.bin
+	./construct.bin
 
 debug:
 	g++ -O0 -g render/main.cpp -lglut -lGLU -lGL -lm
