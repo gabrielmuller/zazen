@@ -30,7 +30,9 @@ struct StanfordModel : Model {
         // quantize to (0, 16, 32..240)
         value /= 256 * 16;
         value *= 16;
-        return Leaf(value, value, value, value);
+        unsigned int color_x = x * 256 / width;
+        unsigned int color_y = y * 256 / height;
+        return Leaf(value, value/4 + color_x / 2, value/8 + color_y / 2, value);
     }
 
     ~StanfordModel() override {

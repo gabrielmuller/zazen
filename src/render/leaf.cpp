@@ -6,6 +6,7 @@ struct Leaf {
     /* Leaf voxel. */
 
     uint8_t r, g, b, a;
+    uint16_t n1, n2;
 
     Leaf() = default;
 

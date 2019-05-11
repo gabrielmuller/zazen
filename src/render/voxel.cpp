@@ -5,7 +5,7 @@
 struct Voxel {
     /* Non-leaf voxel. */
 
-    uint16_t child;
+    int32_t child;
     uint8_t valid; // 8 flags of whether children are visible
     uint8_t leaf;  // 8 flags of whether children are leaves
 
@@ -13,7 +13,7 @@ struct Voxel {
         /* Get address in block of child octant. */
         size_t address = child;
         for (int i = 0; i < octant; i++) {
-            if ((1 << i) & (valid | leaf)) address++;
+            if ((1 << i) & (valid)) address++;
         }
         return address;
     }

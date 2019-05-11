@@ -48,15 +48,19 @@ TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
     }
 
     if (size == 1) {
-        return TaggedNode(new Node(new Leaf(model.get(x, y, z))), LEAF);
+        Leaf leaf = model.get(x, y, z);
+        if (leaf.a > 0xa0) {
+            return TaggedNode(new Node(new Leaf(model.get(x, y, z))), LEAF);
+        }
+        return TaggedNode(nullptr, INVALID);
     }
 
     InternalNode* in = new InternalNode();
 
     for (int i = 0; i < 8; i++) {
         int xi = 4 & i ? x : x + size / 2;
-        int yi = 4 & i ? y : y + size / 2;
-        int zi = 4 & i ? z : z + size / 2;
+        int yi = 2 & i ? y : y + size / 2;
+        int zi = 1 & i ? z : z + size / 2;
 
         TaggedNode tree = create_tree(size / 2, xi, yi, zi, model);
         in->children[i] = tree.node;
@@ -125,8 +129,9 @@ void flatten_tree(InternalNode* in,
                 break;
             case INTERNAL:
                 //TODO
-                children[n_children++] = new (block->slot()) Voxel();
-                i_children[i] = i;
+                children[n_children] = new (block->slot()) Voxel();
+                i_children[n_children] = i;
+                n_children++;
                 break;
             case INVALID:
                 parent->valid ^= 1 << i;
@@ -140,14 +145,13 @@ void flatten_tree(InternalNode* in,
     }
 }
         
-Block* construct(Model* model) {
+Voxel* construct(Model* model, Block* block, Voxel* root_voxel) {
     Node* root_node = create_tree(512, 0, 0, 0, *model).node;
     delete model;
     std::cout << "Internal nodes: " << count << "\n";
-    Block* block = new Block(count * 8);
-    Voxel* root_voxel = new (block->slot()) Voxel();
+    //Block* block = new Block(count * 8);
     flatten_tree(root_node->in, block, root_voxel); 
     std::cout << "Block created. (" << block->size() << "/"
               << block->capacity() << ")\n";
-    return block;
+    return root_voxel;
 }

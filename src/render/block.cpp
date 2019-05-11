@@ -1,8 +1,9 @@
 #pragma once
+#include <iostream>
 
 struct Block {
   private:
-    static const std::size_t element_size = 4;
+    static const std::size_t element_size = 8;
     const size_t element_count;
     char* data = nullptr;
     char* front = nullptr;
@@ -30,7 +31,11 @@ struct Block {
     Block& operator=(Block&& rhs) = delete; // No move assignment operator.
 
     template <class T>
-    T& get(const std::size_t index) const {
+    T& get(const int32_t index) const {
+        if (index > front_index || index < 0) {
+            std::cout << "index " << index << "\n";
+            throw "Out of bounds access in block";
+        }
         return ((T*) data)[index];
     }
 
@@ -46,6 +51,6 @@ struct Block {
     }
 
     size_t capacity() {
-        return element_count * element_size;
+        return element_count;
     }
 };

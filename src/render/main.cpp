@@ -11,8 +11,8 @@
 #include "stack.cpp"
 #include "block.cpp"
 
-#define WIDTH 512
-#define HEIGHT 512
+#define WIDTH 300
+#define HEIGHT 300
 
 const float fov = 1; // 1 -> 90 degrees
 unsigned char texture[WIDTH][HEIGHT][3];             
@@ -23,6 +23,7 @@ Block* block = nullptr;
 void render(unsigned char* pixel, int i, int j) {
     bool do_log = !((i+1)%(WIDTH/8))&&!((j+1)%(HEIGHT/8));
     do_log |= !i && !j;
+    do_log = false;
 
 
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
@@ -31,8 +32,8 @@ void render(unsigned char* pixel, int i, int j) {
     const float time = t / 60.0F;
 
     // start traverse on root voxel
-    Vector origin(sin(time)*0.999, cos(time)*0.999, sin(time/2)-2);
-    Vector direction(screen_x, screen_y, 1);
+    Vector origin(sin(time)*0.4 - 0.4, sin(time/4) * 0.9 + 1.1, cos(time)*0.4 + 0.4);
+    Vector direction(screen_x, -1, screen_y);
 
     Ray ray(origin, direction);
 
@@ -56,9 +57,9 @@ void render(unsigned char* pixel, int i, int j) {
             // XXX LEAF - RED
             //if (ray.distance < 1.01) ray.distance = 1.01;
             if (do_log) printf("Distance: %f\n", ray.distance);
-            ray.distance *= 0.5;
+            ray.distance *= 0.2;
             ray.distance += 1;
-            float lightness = 2/(ray.distance * ray.distance);
+            float lightness = 1/(ray.distance * ray.distance);
             leaf->set_color(pixel, lightness);
             if (do_log)
             printf("Leaf painted %x %x %x\n", leaf->r, leaf->g, leaf->b);
@@ -71,7 +72,7 @@ void render(unsigned char* pixel, int i, int j) {
 
             if (do_log) printf("\nGo deeper\n"), stack.print();
             // XXX EVERY MARCH - SLIGHTLY GREENER
-            pixel[1] += 0x30;
+            //pixel[1] += 0x11;
 
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits next
@@ -212,36 +213,51 @@ void renderScene() {
     glutPostRedisplay();
 }
 
+#include "../construct/stanford.cpp"
+#include "../construct/construct.cpp"
+
 int main(int argc, char **argv) {
 
-    block = new Block(11);
+    block = new Block(4700000);
     Voxel* p = new (block->slot()) Voxel();
+    p->child = block->size();
     Voxel* c = new (block->slot()) Voxel();
-    new (block->slot()) Leaf(0xff, 0x00, 0xff, 0xff);
+    Voxel* voxel_bunny = new (block->slot()) Voxel();
     Voxel* d = new (block->slot()) Voxel();
+
+    c->child = block->size();
     new (block->slot()) Leaf(0xff, 0x88, 0x11, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
-    new (block->slot()) Leaf(0x00, 0xff, 0x80, 0xff);
+
+    construct(bunny(), block, voxel_bunny);
+
+    d->child = block->size();
     Voxel* e = new (block->slot()) Voxel();
+    new (block->slot()) Leaf(0x01, 0xff, 0x80, 0xff);
+
+    e->child = block->size();
     new (block->slot()) Leaf(0xff, 0x33, 0x33, 0xff);
     new (block->slot()) Leaf(0xff, 0xaa, 0xaa, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
 
-    p->child = 1;
     p->valid = 0x8a;
-    p->leaf = 0x08;
+    p->leaf = 0x00;
 
-    c->child = 4;
     c->valid = 0x82;
     c->leaf = 0x82;
 
-    d->child = 6;
     d->valid = 0x82;
     d->leaf = 0x02;
 
-    e->child = 8;
     e->valid = 0xa2;
     e->leaf = 0xa2;
+
+    c->child = voxel_bunny->child;
+    c->valid = voxel_bunny->valid;
+    c->leaf = voxel_bunny->leaf;
+    d->child = voxel_bunny->child;
+    d->valid = voxel_bunny->valid;
+    d->leaf = voxel_bunny->leaf;
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
@@ -257,4 +273,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-
