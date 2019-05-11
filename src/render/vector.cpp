@@ -30,10 +30,6 @@ struct Vector {
         return Vector(mirror_x, mirror_y, mirror_z);
     }
 
-    inline void print() {
-        printf("(%f, %f, %f) %f\n", x, y, z, magnitude());
-    }
-
     void adjust_corner(float size, uint8_t octant) {
         if (octant & 4) x += size;
         if (octant & 2) y += size;

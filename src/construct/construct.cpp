@@ -41,7 +41,8 @@ struct TaggedNode {
     TaggedNode(Node* node, Tag tag) : node(node), tag(tag) {}
 };
 
-int count = 0;
+int count;
+
 TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
     if (x >= model.width || y >= model.height || z >= model.depth) {
         return TaggedNode(nullptr, INVALID);
@@ -49,7 +50,7 @@ TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
 
     if (size == 1) {
         Leaf leaf = model.get(x, y, z);
-        if (leaf.a > 0xa0) {
+        if (leaf.a > 0x80) {
             return TaggedNode(new Node(new Leaf(model.get(x, y, z))), LEAF);
         }
         return TaggedNode(nullptr, INVALID);
@@ -145,17 +146,16 @@ void flatten_tree(InternalNode* in,
     }
 }
         
-Voxel* construct(Model* model, Block* block, Voxel* root_voxel) {
+void construct(Model* model, Block* block, Voxel* root_voxel) {
+    count = 0;
     Node* root_node = create_tree(512, 0, 0, 0, *model).node;
     delete model;
-    std::cout << "Internal nodes: " << count << "\n";
-    //Block* block = new Block(count * 8);
+    std::cout << "Nodes:" << count << "\n";
     flatten_tree(root_node->in, block, root_voxel); 
     std::cout << "Block created. (" << block->size() << "/"
               << block->capacity() << ")\n";
-    return root_voxel;
 }
 
 inline void construct(Model* model, Block* block) {
-    construct(model, block, new (block->slot()) Voxel());
+    return construct(model, block, new (block->slot()) Voxel());
 }

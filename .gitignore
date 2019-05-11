@@ -5,3 +5,4 @@
 .gdbinit
 *.bin
 models/*
+build/*

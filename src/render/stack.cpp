@@ -70,9 +70,4 @@ struct VoxelStack {
         if (ray.origin.z > corner.z + oct_size) octant ^= 1;
         return octant;
     }
-
-    inline void print() {
-        for (int i = 0; i < top; i++) printf("| %d ", entries[i].octant);
-        printf("|\n");
-    }
 };

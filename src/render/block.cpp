@@ -60,7 +60,6 @@ struct Block {
 const std::string Block::EXTENSION = ".zaz";
 
 Block* from_file(std::string filename) {
-    filename += Block::EXTENSION;
     std::ifstream stream(filename, std::ios::binary);
 
     char length_buffer[sizeof(size_t)];

@@ -5,13 +5,7 @@
 #include <vector>
 #include "model.cpp"
 #include "../render/leaf.cpp"
-
-const char sep =
-#ifdef _WIN32
-                            '\\';
-#else
-                            '/';
-#endif
+#include "../render/sep.cpp"
 
 const std::string base_path(std::string("..") + sep + std::string("models"));
 
@@ -27,9 +21,9 @@ struct StanfordModel : Model {
 
     Leaf get(unsigned int x, unsigned int y, unsigned int z) const override {
         uint16_t value = data[z][y * width + x];
-        // quantize to (0, 16, 32..240)
-        value /= 256 * 16;
-        value *= 16;
+        // quantize values
+        value /= 256 * 32;
+        value *= 32;
         unsigned int color_x = x * 256 / width;
         unsigned int color_y = y * 256 / height;
         return Leaf(value, value/4 + color_x / 2, value/8 + color_y / 2, value);
@@ -65,7 +59,3 @@ struct StanfordModel : Model {
         return buffer;
     }
 };
-
-StanfordModel* bunny() {
-    return new StanfordModel("bunny", 512, 512, 316);
-}
