@@ -14,11 +14,10 @@ const unsigned int HEIGHT = 300;
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 316/512.0);
 unsigned char texture[WIDTH][HEIGHT][3];             
-int t = 0;
 
 Block* block = nullptr;
 
-void render(unsigned char* pixel, int i, int j) {
+void render(unsigned char* pixel, int i, int j, int t) {
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
     const float screen_y = (j * fov) / (float) HEIGHT - 0.5;
 

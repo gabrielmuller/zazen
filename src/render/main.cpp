@@ -2,13 +2,14 @@
 #include <GL/glut.h>
 #include "render.cpp"
 
-void render_scene() {    
+int t = 0;
+void render_scene() {
     fflush(stdout);
 
     #pragma omp parallel for
     for (int  i = 0; i < WIDTH; i++) {
         for (int j = 0; j < HEIGHT; j++) {
-            render(texture[j][i], i, j);
+            render(texture[j][i], i, j, t);
         }
     }
 
