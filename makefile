@@ -1,6 +1,6 @@
 all: build
 
-build: clean construct render
+build: clean construct render run_construct
 
 run: build run_construct run_render
 

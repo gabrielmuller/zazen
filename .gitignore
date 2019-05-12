@@ -4,5 +4,6 @@
 .*.sw*
 .gdbinit
 *.bin
+*.zip
 models/*
 build/*
