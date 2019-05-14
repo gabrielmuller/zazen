@@ -22,4 +22,4 @@ run_construct:
 	cd build; ./construct
 
 run_render:
-	cd build; ./render bunny.zaz
+	cd build; ./render brain.zaz

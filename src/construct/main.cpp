@@ -3,7 +3,11 @@
 #include "../render/block.cpp"
 
 StanfordModel* bunny() {
-    return new StanfordModel("bunny", 512, 512, 316);
+    return new StanfordModel("bunny", "", 512, 512, 316);
+}
+
+StanfordModel* brain() {
+    return new StanfordModel("brain", "MRbrain.", 256, 256, 109);
 }
 
 Block* example() {
@@ -44,12 +48,15 @@ Block* example() {
     return block;
 }
 
-int main() {
-    Block bunny_block(100000000);
-    Model* model = bunny();
-    construct(model, &bunny_block);
-    bunny_block.to_file(model->name);
+void save_model(Model* model) {
+    Block block(100000000);
+    construct(model, &block);
+    block.to_file(model->name);
+}
 
+int main() {
+    save_model(bunny());
+    save_model(brain());
     example()->to_file("example");
     return 0;
 }

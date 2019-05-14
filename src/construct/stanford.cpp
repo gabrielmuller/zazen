@@ -13,20 +13,20 @@ const std::string base_path(std::string("..") + sep + std::string("models"));
 struct StanfordModel : Model {
   public:
     uint16_t** data;
-    StanfordModel(std::string name, 
+    StanfordModel(std::string name, std::string prefix,
             unsigned int width, unsigned int height, unsigned int depth) 
             : Model(name, width, height, depth) {
-        data = read_model(name, depth);
+        data = read_model(name, prefix, depth);
     }
 
     Leaf get(unsigned int x, unsigned int y, unsigned int z) const override {
         uint16_t value = data[z][y * width + x];
         // quantize values
-        value /= 256 * 32;
-        value *= 32;
+        value /= 256 * 16;
+        value *= 16;
         unsigned int color_x = x * 256 / width;
         unsigned int color_y = y * 256 / height;
-        return Leaf(value, value/4 + color_x / 2, value/8 + color_y / 2, value);
+        return Leaf(value, value, value, value);
     }
 
     ~StanfordModel() override {
@@ -37,9 +37,12 @@ struct StanfordModel : Model {
     }
         
   private:
-    uint16_t* read_slice(std::string model_name, unsigned int slice) {
+    uint16_t* read_slice(std::string model_name,
+                         std::string prefix,
+                         unsigned int slice) {
+
         std::string path = base_path + sep + model_name + 
-                           sep + std::to_string(slice);
+                           sep + prefix + std::to_string(slice);
         std::ifstream file(path, std::ios::binary | std::ios::ate);
         std::streamsize size = file.tellg();
         file.seekg(0, std::ios::beg);
@@ -51,10 +54,12 @@ struct StanfordModel : Model {
     }
 
     uint16_t** read_model
-            (std::string model_name, unsigned int num_slices) {
+            (std::string model_name,
+             std::string prefix,
+             unsigned int num_slices) {
         uint16_t** buffer = new uint16_t*[num_slices];
         for (int i = 0; i < num_slices; i++) {
-            buffer[i] = read_slice(model_name, i+1);
+            buffer[i] = read_slice(model_name, prefix, i+1);
         }
         return buffer;
     }

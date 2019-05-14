@@ -8,8 +8,8 @@
 #include "stack.cpp"
 #include "block.cpp"
 
-const unsigned int WIDTH = 300;
-const unsigned int HEIGHT = 300;
+const unsigned int WIDTH = 512;
+const unsigned int HEIGHT = 512;
 
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 316/512.0);
@@ -32,8 +32,8 @@ void render(unsigned char* pixel, int i, int j, int t) {
     VoxelStack stack(20, 2.0);
     stack.push_root(&block->get<Voxel>(0), Vector(-1, -1, -1), ray);
 
-    pixel[0] = 0x33;
-    pixel[1] = 0x33;
+    pixel[0] = 0x00;
+    pixel[1] = 0x00;
     pixel[2] = 0x00;
 
     while (true) {
@@ -47,17 +47,19 @@ void render(unsigned char* pixel, int i, int j, int t) {
             ray.distance *= 0.2;
             ray.distance += 1;
             float lightness = 1/(ray.distance * ray.distance);
-            leaf->set_color(pixel, lightness);
-            break;
+            leaf->set_color(pixel, ray.distance);
+            //if (leaf->a > 0xdf) break;
+            goto invalid;
         } 
 
         if (valid) {
             /* Go a level deeper. */
             stack.push(&block->get<Voxel>(stack->voxel->address_of(oct)), ray);
 
-            pixel[1] += (0xff - pixel[1]) / 8;
+            //pixel[0] += (0xff - pixel[0]) / 128;
 
         } else {
+            invalid:
             /* Ray origin is in invalid voxel, cast ray until it hits next
              * voxel. 
              */
@@ -106,7 +108,7 @@ void render(unsigned char* pixel, int i, int j, int t) {
                 /* Ray is outside root octree. */
 
                 // EMPTY STACK AFTER LOOP - BLUE
-                pixel[2] = 0xc0;
+                //pixel[2] = 0xc0;
                 break;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
