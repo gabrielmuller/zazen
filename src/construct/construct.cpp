@@ -129,7 +129,6 @@ void flatten_tree(InternalNode* in,
                 parent->leaf |= 1 << i;
                 break;
             case INTERNAL:
-                //TODO
                 children[n_children] = new (block->slot()) Voxel();
                 i_children[n_children] = i;
                 n_children++;
@@ -148,10 +147,21 @@ void flatten_tree(InternalNode* in,
         
 void construct(Model* model, Block* block, Voxel* root_voxel) {
     count = 0;
-    Node* root_node = create_tree(512, 0, 0, 0, *model).node;
-    delete model;
+    TaggedNode root = create_tree(512, 0, 0, 0, *model);
     std::cout << "Nodes:" << count << "\n";
-    flatten_tree(root_node->in, block, root_voxel); 
+    delete model;
+    
+    switch (root.tag) {
+        case LEAF:
+            std::cout << "Leaf block.\n";
+            new (block->slot()) Leaf(*root.node->leaf);
+            return;
+        case INVALID:
+            std::cout << "Invalid block.\n";
+            return;
+    }
+
+    flatten_tree(root.node->in, block, root_voxel); 
     std::cout << "Block created. (" << block->size() << "/"
               << block->capacity() << ")\n";
 }

@@ -12,7 +12,7 @@ const unsigned int WIDTH = 300;
 const unsigned int HEIGHT = 300;
 
 const float fov = 1.2; // 1 -> 90 degrees
-const Vector scale(1, 1, 316/512.0);
+const Vector scale(1, 1, 1);
 unsigned char texture[WIDTH][HEIGHT][3];             
 
 Block* block = nullptr;
@@ -55,7 +55,7 @@ void render(unsigned char* pixel, int i, int j, int t) {
             /* Go a level deeper. */
             stack.push(&block->get<Voxel>(stack->voxel->address_of(oct)), ray);
 
-            pixel[1] += (0xff - pixel[1]) / 8;
+            pixel[1] += (0xff - pixel[1]) / 64;
 
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits next

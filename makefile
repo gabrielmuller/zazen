@@ -15,11 +15,11 @@ construct:
 	g++ -O3 src/construct/main.cpp -fopenmp -o build/construct
 
 debug:
-	g++ -O0 -g src/render/main.cpp -lglut -lGLU -lGL -lm -o build/debug
-	g++ -O0 -g src/construct/main.cpp
+	g++ -O0 -g src/render/main.cpp -lglut -lGLU -lGL -lm -o build/render
+	g++ -O0 -g src/construct/main.cpp -o build/construct
 
 run_construct:
 	cd build; ./construct
 
 run_render:
-	cd build; ./render bunny.zaz
+	cd build; ./render generated.zaz
