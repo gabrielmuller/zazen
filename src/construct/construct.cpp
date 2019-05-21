@@ -43,6 +43,39 @@ struct TaggedNode {
 
 int count;
 
+struct Element {
+    union {
+        Voxel voxel;
+        Leaf leaf;
+    }
+    const Tag tag;
+    Element(Voxel voxel, Tag tag) : voxel(voxel), tag(tag) {}
+    Element(Leaf leaf,   Tag tag) : leaf (leaf),  tag(tag) {}
+}
+
+uint8_t children_valid(int size, int x, int y, int z, const Model& model) {
+    /* Recursively check if children have any valid voxels. */
+    if (size == 1) return model.get(x, y, z).a > 0 ? 0xff : 0x00;
+    uint8_t valid = 0;
+    for (int i = 0; i < 8; i++) {
+        int xi = 4 & i ? x : x + size / 2;
+        int yi = 2 & i ? y : y + size / 2;
+        int zi = 1 & i ? z : z + size / 2;
+        if (check_valid(size / 2, xi, yi, zi, model)) valid |= (1 << i);
+    }
+    return valid;
+}
+
+Element construct(int size, int x, int y, int z,
+               const Model& model, Block* block) {
+    if (size == 1) return Element(model.get(x, y, z), LEAF);
+
+    uint8_t valid = children_valid(size, x, y, z, model);
+    char* slots[8] = {};
+    for (int i = 0; i < 8; i++) if ((1 << i) & valid) slots[i] = block->slot(); 
+        
+
+
 TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
     if (x >= model.width || y >= model.height || z >= model.depth) {
         return TaggedNode(nullptr, INVALID);
