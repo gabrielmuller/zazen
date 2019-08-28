@@ -41,8 +41,8 @@ void render_scene() {
     glutPostRedisplay();
 }
 
-int main(int argc, char **argv) {
 
+int main(int argc, char **argv) {
     unsigned int arg = 1;
     if (arg >= argc) {
         std::cout << "Please specify an input file.\n";

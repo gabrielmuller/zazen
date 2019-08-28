@@ -11,9 +11,14 @@ struct Model {
     Model(std::string name, 
             unsigned int width, unsigned int height, unsigned int depth) 
             : width(width), height(height), depth(depth), name(name) {
-        std::cout << "Reading model \"" << name << "\" from file...\n";
+        std::cout << "Reading model \"" << name << "\" ...\n";
     }
+    virtual ~Model() {}
+
+  //private:
+    size_t index;
 
     virtual Leaf get(unsigned int x, unsigned int y, unsigned int z) const = 0;
-    virtual ~Model() {}
+    
+
 };

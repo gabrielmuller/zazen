@@ -12,7 +12,7 @@ StanfordModel* brain() {
 }
 
 GenerateModel* generated() {
-    return new GenerateModel("generated", 1024, 1024, 1024);
+    return new GenerateModel("generated", 256, 256, 256);
 }
 
 Block* example() {
@@ -59,7 +59,14 @@ void save_model(Model* model) {
     block.to_file(model->name);
 }
 
+#include "zstream.cpp"
 int main() {
+    ZStream z((Model*) generated());
+    while (z.is_open()) {
+        auto a = z.next();
+        std::cout << (a.a ? "#" : " ");
+    }
+    return 0;
     //save_model(bunny());
     //save_model(brain());
     save_model(generated());

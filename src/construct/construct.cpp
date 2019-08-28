@@ -50,7 +50,7 @@ TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
 
     if (size == 1) {
         Leaf leaf = model.get(x, y, z);
-        if (leaf.a > 0x80) {
+        if (leaf.valid()) {
             return TaggedNode(new Node(new Leaf(model.get(x, y, z))), LEAF);
         }
         return TaggedNode(nullptr, INVALID);
