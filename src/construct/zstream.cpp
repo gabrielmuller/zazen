@@ -29,10 +29,17 @@ struct ZFrame {
             : size(size), offset(offset), i(i) {}
 };
 
+struct IndexedLeaf {
+    const Leaf leaf;
+    const unsigned int index;
+    IndexedLeaf(const Leaf leaf, const unsigned int index) : leaf(leaf), index(index) {}
+};
+
 class ZStream {
     const Model* model;
     std::stack<ZFrame> stack;
     bool _open;
+    unsigned int index;
 
     int3 next_coords() {
         if (stack.top().size == 1) {
@@ -48,6 +55,7 @@ class ZStream {
                 return ret;
             }
 
+            index++;
             return ret;
         }
         const unsigned int size = stack.top().size / 2;
@@ -61,16 +69,16 @@ class ZStream {
     }
 
   public:
-    ZStream(Model* model) : model(model), _open(true) {
+    ZStream(Model* model) : model(model), index(0), _open(true) {
         const unsigned int power = std::log2(std::max({model->width, model->height, model->depth}));
         stack.push(ZFrame(1 << power, int3(0, 0, 0), 0));
     }
 
     inline bool is_open() { return _open; }
 
-    inline Leaf next() {
-        int3 coords(next_coords());
-        return model->get(coords.x, coords.y, coords.z);
+    inline IndexedLeaf next() {
+        Leaf leaf;
+        do leaf = model->at(next_coords()); while (!leaf.valid());
+        return IndexedLeaf(leaf, index);
     }
-
 };

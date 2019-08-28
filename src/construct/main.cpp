@@ -63,8 +63,7 @@ void save_model(Model* model) {
 int main() {
     ZStream z((Model*) generated());
     while (z.is_open()) {
-        auto a = z.next();
-        std::cout << (a.a ? "#" : " ");
+        std::cout << z.next().index << " ";
     }
     return 0;
     //save_model(bunny());

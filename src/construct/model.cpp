@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <iostream>
 #include "../render/leaf.cpp"
+#include "int3.cpp"
 
 struct Model {
     const unsigned int width, height, depth;
@@ -18,7 +19,7 @@ struct Model {
   //private:
     size_t index;
 
-    virtual Leaf get(unsigned int x, unsigned int y, unsigned int z) const = 0;
+    virtual Leaf at(int3 pos) const = 0;
     
 
 };

@@ -19,13 +19,13 @@ struct StanfordModel : Model {
         data = read_model(name, prefix, depth);
     }
 
-    Leaf get(unsigned int x, unsigned int y, unsigned int z) const override {
-        uint16_t value = data[z][y * width + x];
+    Leaf at(int3 pos) const override {
+        uint16_t value = data[pos.z][pos.y * width + pos.x];
         // quantize values
         value /= 256 * 16;
         value *= 16;
-        unsigned int color_x = x * 256 / width;
-        unsigned int color_y = y * 256 / height;
+        unsigned int color_x = pos.x * 256 / width;
+        unsigned int color_y = pos.y * 256 / height;
         return Leaf(value, value, value, value);
     }
 

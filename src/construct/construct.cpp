@@ -43,15 +43,15 @@ struct TaggedNode {
 
 int count;
 
-TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
-    if (x >= model.width || y >= model.height || z >= model.depth) {
+TaggedNode create_tree(int size, int3 pos, const Model& model) {
+    if (pos.x >= model.width || pos.y >= model.height || pos.z >= model.depth) {
         return TaggedNode(nullptr, INVALID);
     }
 
     if (size == 1) {
-        Leaf leaf = model.get(x, y, z);
+        Leaf leaf = model.at(pos);
         if (leaf.valid()) {
-            return TaggedNode(new Node(new Leaf(model.get(x, y, z))), LEAF);
+            return TaggedNode(new Node(new Leaf(leaf)), LEAF);
         }
         return TaggedNode(nullptr, INVALID);
     }
@@ -59,11 +59,11 @@ TaggedNode create_tree(int size, int x, int y, int z, const Model& model) {
     InternalNode* in = new InternalNode();
 
     for (int i = 0; i < 8; i++) {
-        int xi = 4 & i ? x : x + size / 2;
-        int yi = 2 & i ? y : y + size / 2;
-        int zi = 1 & i ? z : z + size / 2;
+        int xi = 4 & i ? pos.x : pos.x + size / 2;
+        int yi = 2 & i ? pos.y : pos.y + size / 2;
+        int zi = 1 & i ? pos.z : pos.z + size / 2;
 
-        TaggedNode tree = create_tree(size / 2, xi, yi, zi, model);
+        TaggedNode tree = create_tree(size / 2, int3(xi, yi, zi), model);
         in->children[i] = tree.node;
         in->tags[i] = tree.tag;
     }
@@ -147,7 +147,7 @@ void flatten_tree(InternalNode* in,
         
 void construct(Model* model, Block* block, Voxel* root_voxel) {
     count = 0;
-    TaggedNode root = create_tree(512, 0, 0, 0, *model);
+    TaggedNode root = create_tree(512, int3(0, 0, 0), *model);
     std::cout << "Nodes:" << count << "\n";
     delete model;
     
