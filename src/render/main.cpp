@@ -1,44 +1,30 @@
-#include <GL/glut.h>
-#include <GL/glut.h>
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_render.h>
 #include "render.cpp"
 
-int t = 0;
-void render_scene() {
-    fflush(stdout);
+unsigned char pixels[WIDTH][HEIGHT][4];
+SDL_Texture* texture;
+SDL_Renderer* renderer;
+
+void render_scene(unsigned int tick) {
+    SDL_RenderClear(renderer);
 
     #pragma omp parallel for
     for (int  i = 0; i < WIDTH; i++) {
         for (int j = 0; j < HEIGHT; j++) {
-            render(texture[j][i], i, j, t);
+            render(pixels[j][i], i, j, tick);
         }
     }
 
-    t++;
-    glEnable (GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    SDL_UpdateTexture(
+        texture,
+        nullptr,
+        pixels,
+        WIDTH * 4
+    );
 
-    glTexImage2D (
-            GL_TEXTURE_2D,
-            0,
-            GL_RGB,
-            WIDTH,
-            HEIGHT,
-            0,
-            GL_RGB,
-            GL_UNSIGNED_BYTE,
-            texture
-            );
-
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0, -1.0);
-    glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0, -1.0);
-    glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0,  1.0);
-    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0,  1.0);
-    glEnd();
-
-    glFlush();
-    glutSwapBuffers();
-    glutPostRedisplay();
+    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+    SDL_RenderPresent(renderer);
 }
 
 int main(int argc, char **argv) {
@@ -51,16 +37,40 @@ int main(int argc, char **argv) {
 
     block = from_file(argv[arg]);
 
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+    SDL_Init(SDL_INIT_EVERYTHING);
+    atexit(SDL_Quit);
 
-    glutInitWindowPosition(100, 100);
-    glutInitWindowSize(WIDTH, HEIGHT);
-    glutCreateWindow(" ");
+    SDL_Window* window = SDL_CreateWindow(
+            "zazen",
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+            WIDTH, HEIGHT,
+            SDL_WINDOW_SHOWN
+    );
 
-    glutDisplayFunc(render_scene);
-    glutIdleFunc(render_scene);
-    glutMainLoop();
+    renderer = SDL_CreateRenderer(
+        window, 
+        -1,
+        SDL_RENDERER_ACCELERATED
+    );
 
+    texture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_BGR888,
+        SDL_TEXTUREACCESS_STREAMING,
+        WIDTH, HEIGHT
+    );
+
+    SDL_Event event;
+
+
+    bool running = true;
+    for (unsigned int tick = 0; running; tick++) {
+        while (SDL_PollEvent(&event)) if (event.type == SDL_QUIT) running = false;
+        render_scene(tick);
+    }
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     return 0;
 }

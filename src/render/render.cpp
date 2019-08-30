@@ -13,7 +13,6 @@ const unsigned int HEIGHT = 300;
 
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 1);
-unsigned char texture[WIDTH][HEIGHT][3];             
 
 Block* block = nullptr;
 
