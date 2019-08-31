@@ -5,7 +5,7 @@
 #include <vector>
 #include "model.cpp"
 #include "../render/leaf.cpp"
-#include "../render/sep.cpp"
+#include "sep.cpp"
 
 const std::string base_path(std::string("..") + sep + std::string("models"));
 
