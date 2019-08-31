@@ -32,6 +32,7 @@ struct Block {
         std::ofstream stream(filename, std::ios::binary);
         stream.write((char*) &front_index, sizeof(size_t));
         stream.write(data, size() * ELEMENT_SIZE);
+	stream << std::flush;
         std::cout << "File \"" << filename << "\" saved to disk.\n";
     }
 

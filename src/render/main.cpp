@@ -1,6 +1,9 @@
+#define SDL_MAIN_HANDLED
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_render.h>
 #include "render.cpp"
+
 
 unsigned char pixels[WIDTH][HEIGHT][4];
 SDL_Texture* texture;
