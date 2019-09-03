@@ -16,7 +16,7 @@ void render_scene(unsigned int tick) {
     cam_center.origin = Vector(sin(time)*0.9,
                                sin(time/3.21) * 0.9 + 1.1,
                                cos(time/1.12)*0.9);
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(dynamic)
     for (int  i = 0; i < WIDTH; i++) {
         for (int j = 0; j < HEIGHT; j++) {
             render(pixels[j][i], i, j);
