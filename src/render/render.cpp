@@ -13,20 +13,18 @@ const unsigned int HEIGHT = 300;
 
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 1);
+Ray cam_center;
 
 Block* block = nullptr;
 
-void render(unsigned char* pixel, int i, int j, int t) {
+void render(unsigned char* pixel, int i, int j) {
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
     const float screen_y = (j * fov) / (float) HEIGHT - 0.5;
 
-    const float time = t / 60.0F;
-
     // start traverse on root voxel
-    Vector origin(sin(time)*0.9, sin(time/3.21) * 0.9 + 1.1, cos(time/1.12)*0.9);
     Vector direction(screen_x * scale.x, -1 * scale.y, screen_y * scale.z);
 
-    Ray ray(origin, direction);
+    Ray ray(cam_center.origin, direction);
 
     VoxelStack stack(20, 2.0);
     stack.push_root(&block->get<Voxel>(0), Vector(-1, -1, -1), ray);
@@ -43,9 +41,7 @@ void render(unsigned char* pixel, int i, int j, int t) {
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
             Leaf* leaf = &block->get<Leaf>(stack->voxel->address_of(oct));
-            ray.distance *= 0.2;
-            ray.distance += 1;
-            float lightness = 1/(ray.distance * ray.distance);
+            float lightness = 1/(ray.square_distance() + 1);
             leaf->set_color(pixel, lightness);
             break;
         } 
