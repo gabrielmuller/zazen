@@ -40,6 +40,7 @@ class ZStream {
     std::stack<ZFrame> stack;
     bool _open;
     unsigned int index;
+    const unsigned int power;
 
     int3 next_coords() {
         if (stack.top().size == 1) {
@@ -69,8 +70,9 @@ class ZStream {
     }
 
   public:
-    ZStream(Model* model) : model(model), index(0), _open(true) {
-        const unsigned int power = std::log2(std::max({model->width, model->height, model->depth}));
+    ZStream(Model* model) : model(model), index(0), _open(true), 
+            power(std::log2(std::max({model->width, model->height, model->depth}))) {
+
         stack.push(ZFrame(1 << power, int3(0, 0, 0), 0));
     }
 
