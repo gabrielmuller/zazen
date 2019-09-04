@@ -17,8 +17,8 @@ void render_scene(unsigned int tick) {
                                sin(time/3.21) * 0.9 + 1.1,
                                cos(time/1.12)*0.9);
     #pragma omp parallel for schedule(dynamic)
-    for (int  i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
+    for (unsigned int i = 0; i < WIDTH; i++) {
+        for (unsigned int j = 0; j < HEIGHT; j++) {
             render(pixels[j][i], i, j);
         }
     }
@@ -36,7 +36,7 @@ void render_scene(unsigned int tick) {
 
 int main(int argc, char **argv) {
 
-    unsigned int arg = 1;
+    const int arg = 1;
     if (arg >= argc) {
         std::cout << "Please specify an input file.\n";
         return 1;

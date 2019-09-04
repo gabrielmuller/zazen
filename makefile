@@ -9,10 +9,10 @@ clean:
 	mkdir build
 
 render:
-	g++ -O3 -Ofast src/render/main.cpp -fopenmp -lSDL2 -o build/render
+	g++ -Wall -Wextra -O3 -Ofast src/render/main.cpp -fopenmp -lSDL2 -o build/render
 
 construct:
-	g++ -O3 src/construct/main.cpp -o build/construct
+	g++ -Wall -Wextra -O3 src/construct/main.cpp -o build/construct
 
 debug:
 	g++ -O0 -g src/render/main.cpp -lglut -lGLU -lGL -lm -o build/render
