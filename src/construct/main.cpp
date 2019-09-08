@@ -55,10 +55,10 @@ Block* example() {
 }
 
 void save_model(Model* model) {
-    Block block(100000000);
+    Block block(100000000); // TODO: dynamic allocation
     ZStream stream(model);
     Builder builder(&block, stream.power);
-    while(!builder.is_done()) builder.add_leaf(stream.next());
+    while(!builder.is_done() && stream.is_open()) builder.add_leaf(stream.next());
     block.to_file(model->name);
 }
 

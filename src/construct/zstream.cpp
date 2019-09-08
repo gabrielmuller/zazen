@@ -67,9 +67,10 @@ class ZStream {
 
   public:
     const unsigned int power;
+    const unsigned int stream_size;
     ZStream(Model* model) : model(model), index(0), _open(true), 
-            power(std::log2(std::max({model->width, model->height, model->depth}))) {
-
+            power(std::log2(std::max({model->width, model->height, model->depth}))),
+            stream_size(std::pow(2, power)) {
         stack.push(ZFrame(1 << power, int3(0, 0, 0), 0));
     }
 
@@ -77,7 +78,10 @@ class ZStream {
 
     inline IndexedLeaf next() {
         Leaf leaf;
-        do leaf = model->at(next_coords()); while (!leaf.valid());
+
+        do leaf = model->at(next_coords()); 
+        while (!leaf.valid() && index < stream_size);
+
         return IndexedLeaf(leaf, index);
     }
 };

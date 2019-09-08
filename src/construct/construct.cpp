@@ -22,7 +22,7 @@ class NodeQueue {
     uint8_t size = 0;
 
   public:
-    void push(Node&& node) {
+    void push(Node node) {
         data[size] = node;
         size++;
     }
@@ -31,7 +31,7 @@ class NodeQueue {
         return size == 8;
     }
 
-    void collapse() {
+    void clear() {
         size = 0;
     }
 
@@ -58,58 +58,58 @@ class Builder {
     }
 
     void add_leaf(IndexedLeaf ileaf) {
-        int i = queue_count - 1;
         Leaf leaf = ileaf.leaf;
         unsigned int index = ileaf.index;
 
-collapse:
-        while (queues[i].full()) {
-            /* Collapse full queue on top to a voxel in the queue below. */
-            NodeQueue& queue = queues[i];
-            Voxel parent;
-            parent.valid = 0;
-            parent.leaf = 0;
-            parent.child = block->size();
-            bool parent_is_leaf = true;
-            for (auto j = 0; j < 8; j++) {
-                Node& node = queue[j];
+        while (stream_index + 1 < index) {
+            unsigned int i = 0;
 
-                if (node.is_valid) {
-                    parent.valid ^= 1 << j;
-                } else {
-                    parent_is_leaf = false;
-                    break;
-                }
+            while (queues[i].full()) {
+                /* Collapse full queue on top to a voxel in the queue below. */
+                NodeQueue& queue = queues[i];
+                Voxel parent;
+                parent.valid = 0;
+                parent.leaf = 0;
+                parent.child = block->size();
+                bool parent_is_leaf = true;
+                for (auto j = 0; j < 8; j++) {
+                    Node& node = queue[j];
 
-                if (node.is_leaf) {
-                    parent.leaf ^= 1 << j;
-                    new (block->slot()) Leaf(node.leaf);
-                    if (parent_is_leaf  && queue[0].leaf != node.leaf) {
+                    if (node.is_valid) {
+                        parent.valid ^= 1 << j;
+                    } else {
                         parent_is_leaf = false;
+                        break;
                     }
-                } else {
-                    parent_is_leaf = false;
-                    new (block->slot()) Voxel(node.voxel);
+
+                    if (node.is_leaf) {
+                        parent.leaf ^= 1 << j;
+                        new (block->slot()) Leaf(node.leaf);
+                        if (parent_is_leaf  && queue[0].leaf != node.leaf) {
+                            parent_is_leaf = false;
+                        }
+                    } else {
+                        parent_is_leaf = false;
+                        new (block->slot()) Voxel(node.voxel);
+                    }
                 }
-            }
-            i--;
-            if (i < 0) {
-                new (block->slot()) Voxel(parent);
-                _is_done = true;
-                return;
+                i++;
+                if (i >= queue_count) {
+                    new (block->slot()) Voxel(parent);
+                    _is_done = true;
+                    return;
+                }
+
+                if (parent_is_leaf) {
+                    queues[i].push(Node(queue[0].leaf));
+                } else {
+                    queues[i].push(Node(parent));
+                }
+                queue.clear();
             }
 
-            if (parent_is_leaf) {
-                queue.push(Node(queue[0].leaf));
-            } else {
-                queue.push(Node(parent));
-            }
-        }
-
-        if (stream_index + 1 < index) {
             queues[0].push(Node());
             stream_index++;
-            goto collapse;
         }
 
         queues[0].push(leaf);
