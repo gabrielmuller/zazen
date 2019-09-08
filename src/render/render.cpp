@@ -27,7 +27,7 @@ void render(unsigned char* pixel, int i, int j) {
     Ray ray(cam_center.origin, direction);
 
     VoxelStack stack(20, 2.0);
-    stack.push_root(&block->get<Voxel>(0), Vector(-1, -1, -1), ray);
+    stack.push_root(&block->back<Voxel>(), Vector(-1, -1, -1), ray);
 
     pixel[0] = 0x33;
     pixel[1] = 0x33;
@@ -40,7 +40,7 @@ void render(unsigned char* pixel, int i, int j) {
         bool leaf = (stack->voxel->leaf >> oct) & 1;
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            Leaf* leaf = &block->get<Leaf>(stack->voxel->address_of(oct));
+            Leaf* leaf = &block->at<Leaf>(stack->voxel->address_of(oct));
             float lightness = 1/(ray.square_distance() + 1);
             leaf->set_color(pixel, lightness);
             break;
@@ -48,7 +48,7 @@ void render(unsigned char* pixel, int i, int j) {
 
         if (valid) {
             /* Go a level deeper. */
-            stack.push(&block->get<Voxel>(stack->voxel->address_of(oct)), ray);
+            stack.push(&block->at<Voxel>(stack->voxel->address_of(oct)), ray);
 
             pixel[1] += (0xff - pixel[1]) / 64;
 

@@ -39,9 +39,14 @@ struct Block {
         }
     }
 
-    template <class T>
-    T& get(const int32_t index) const {
+    template <typename T>
+    T& at(const int32_t index) const {
         return ((T*) data)[index];
+    }
+
+    template <typename T>
+    inline T& back() const {
+        return at<T>(size() - 1);
     }
 
     char* slot() {

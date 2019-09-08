@@ -16,9 +16,10 @@ construct:
 
 debug:
 	g++ -Wall -Wextra -g -O0 src/construct/main.cpp -o build/construct
+	g++ -Wall -Wextra -g -O0 -Ofast -DHEADLESS src/render/main.cpp -fopenmp -lSDL2 -o build/render
 
 prof:
-	g++ -g -pg -O3 -Ofast src/render/main.cpp -fopenmp -lSDL2 -o build/render
+	g++ -g -pg -O3 -Ofast src/render/main.cpp -lSDL2 -o build/render
 
 
 run_construct:

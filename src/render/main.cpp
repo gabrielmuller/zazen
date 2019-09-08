@@ -1,21 +1,29 @@
 #define SDL_MAIN_HANDLED
 
+#ifndef HEADLESS
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_render.h>
+SDL_Texture* texture;
+SDL_Renderer* renderer;
+
+#endif
+
 #include "render.cpp"
 
 
 unsigned char pixels[WIDTH][HEIGHT][4];
-SDL_Texture* texture;
-SDL_Renderer* renderer;
 
 void render_scene(unsigned int tick) {
+#ifndef HEADLESS
     SDL_RenderClear(renderer);
+#endif
 
     const float time = tick / 60.0F;
     cam_center.origin = Vector(sin(time)*0.9,
                                sin(time/3.21) * 0.9 + 1.1,
                                cos(time/1.12)*0.9);
+
     #pragma omp parallel for schedule(dynamic)
     for (unsigned int i = 0; i < WIDTH; i++) {
         for (unsigned int j = 0; j < HEIGHT; j++) {
@@ -23,6 +31,7 @@ void render_scene(unsigned int tick) {
         }
     }
 
+#ifndef HEADLESS
     SDL_UpdateTexture(
         texture,
         nullptr,
@@ -32,10 +41,14 @@ void render_scene(unsigned int tick) {
 
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
     SDL_RenderPresent(renderer);
+#endif
 }
 
 
 int main(int argc, char **argv) {
+#ifdef HEADLESS
+    for (unsigned int tick = 0; ; tick++) render_scene(tick);
+#else
     const int arg = 1;
 
     if (arg >= argc) {
@@ -81,4 +94,5 @@ int main(int argc, char **argv) {
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
+#endif
 }
