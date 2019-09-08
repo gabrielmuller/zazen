@@ -18,26 +18,35 @@ GenerateModel* generated() {
 
 Block* example() {
     Block* block = new Block(11);
-    Voxel* p = new (block->slot()) Voxel();
 
-    p->child = block->size();
-    new (block->slot()) Leaf(0x33, 0x22, 0x00, 0xff);
-    Voxel* c = new (block->slot()) Voxel();
-    Voxel* d = new (block->slot()) Voxel();
+    auto e_size = block->size();
 
-    c->child = block->size();
-    new (block->slot()) Leaf(0xff, 0x88, 0x11, 0xff);
-    new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
-
-
-    d->child = block->size();
-    new (block->slot()) Leaf(0x01, 0xff, 0x80, 0xff);
-    Voxel* e = new (block->slot()) Voxel();
-
-    e->child = block->size();
-    new (block->slot()) Leaf(0xff, 0x33, 0x33, 0xff);
-    new (block->slot()) Leaf(0xff, 0xaa, 0xaa, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
+    new (block->slot()) Leaf(0xff, 0xaa, 0xaa, 0xff);
+    new (block->slot()) Leaf(0xff, 0x33, 0x33, 0xff);
+
+    Voxel* e = new (block->slot()) Voxel();
+    e->child = e_size;
+
+    auto d_size = block->size();
+    new (block->slot()) Leaf(0x01, 0xff, 0x80, 0xff);
+
+
+    auto c_size = block->size();
+    new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
+    new (block->slot()) Leaf(0xff, 0x88, 0x11, 0xff);
+
+    auto p_size = block->size();
+    Voxel* d = new (block->slot()) Voxel();
+    Voxel* c = new (block->slot()) Voxel();
+
+    d->child = d_size;
+    c->child = c_size;
+
+    new (block->slot()) Leaf(0x33, 0x22, 0x00, 0xff);
+
+    Voxel* p = new (block->slot()) Voxel();
+    p->child = p_size;
 
     p->valid = 0x8a;
     p->leaf = 0x02;

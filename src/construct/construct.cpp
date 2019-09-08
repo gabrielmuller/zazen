@@ -102,6 +102,8 @@ class Builder {
 
                 if (parent_is_leaf) {
                     queues[i].push(Node(queue[0].leaf));
+                } else if (!parent.valid) {
+                    queues[i].push(Node());
                 } else {
                     queues[i].push(Node(parent));
                 }

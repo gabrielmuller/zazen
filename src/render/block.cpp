@@ -8,15 +8,22 @@ struct Block {
     const size_t element_count;
     char* data = nullptr;
     char* front = nullptr;
-    size_t front_index = 0;
+    size_t front_index;
 
   public:
     static const std::string EXTENSION;
 
-    explicit Block(size_t element_count) :
+    Block(size_t element_count, bool full = false) :
             element_count(element_count) {
-        data = new char[element_count * ELEMENT_SIZE];
-        front = data;
+        const size_t size = element_count * ELEMENT_SIZE;
+        data = new char[size];
+        if (full) { 
+            front = data + size;
+            front_index = element_count;
+        } else {
+            front = data;
+            front_index = 0;
+        }
     }
 
     ~Block() {
@@ -24,7 +31,7 @@ struct Block {
     }
 
     inline void read_from_stream(std::ifstream& stream, size_t count) {
-        stream.read(front, count * ELEMENT_SIZE);
+        stream.read(data, count * ELEMENT_SIZE);
     }
 
     void to_file(std::string filename) {
@@ -75,9 +82,8 @@ Block* from_file(std::string filename) {
     stream.read(length_buffer, sizeof(size_t));
 
     size_t count = *((size_t*) length_buffer);
-    Block* block = new Block(count);
+    Block* block = new Block(count, true);
     block->read_from_stream(stream, count);
-    block->front_index = count;
 
     std::cout << "File \"" << filename << "\" loaded from disk.\n";
     return block;
