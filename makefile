@@ -15,7 +15,6 @@ construct:
 	g++ -Wall -Wextra -O3 src/construct/main.cpp -o build/construct
 
 debug:
-	g++ -Wall -Wextra -g -O0 -Ofast src/render/main.cpp -fopenmp -lSDL2 -o build/render
 	g++ -Wall -Wextra -g -O0 src/construct/main.cpp -o build/construct
 
 prof:

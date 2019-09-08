@@ -30,10 +30,13 @@ struct Block {
     void to_file(std::string filename) {
         filename += EXTENSION;
         std::ofstream stream(filename, std::ios::binary);
-        stream.write((char*) &front_index, sizeof(size_t));
-        stream.write(data, size() * ELEMENT_SIZE);
-	stream << std::flush;
-        std::cout << "File \"" << filename << "\" saved to disk.\n";
+        if (stream.good()) {
+            stream.write((char*) &front_index, sizeof(size_t));
+            stream.write(data, size() * ELEMENT_SIZE);
+            std::cout << "File '" << filename << "' saved to disk.\n";
+        } else {
+            std::cout << "Could not open file '" << filename << ".\n";
+        }
     }
 
     template <class T>

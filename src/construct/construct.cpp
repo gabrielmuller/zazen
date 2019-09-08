@@ -61,7 +61,7 @@ class Builder {
         Leaf leaf = ileaf.leaf;
         unsigned int index = ileaf.index;
 
-        while (stream_index + 1 < index) {
+        do {
             unsigned int i = 0;
 
             while (queues[i].full()) {
@@ -110,7 +110,7 @@ class Builder {
 
             queues[0].push(Node());
             stream_index++;
-        }
+        } while (stream_index + 1 < index);
 
         queues[0].push(leaf);
         stream_index++;
