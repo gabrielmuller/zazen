@@ -77,6 +77,7 @@ Block* from_file(std::string filename) {
     size_t count = *((size_t*) length_buffer);
     Block* block = new Block(count);
     block->read_from_stream(stream, count);
+    block->front_index = count;
 
     std::cout << "File \"" << filename << "\" loaded from disk.\n";
     return block;

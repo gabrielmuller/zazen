@@ -46,9 +46,6 @@ void render_scene(unsigned int tick) {
 
 
 int main(int argc, char **argv) {
-#ifdef HEADLESS
-    for (unsigned int tick = 0; ; tick++) render_scene(tick);
-#else
     const int arg = 1;
 
     if (arg >= argc) {
@@ -57,6 +54,10 @@ int main(int argc, char **argv) {
     }
 
     block = from_file(argv[arg]);
+
+#ifdef HEADLESS
+    for (unsigned int tick = 0; ; tick++) render_scene(tick);
+#else
 
     SDL_Init(SDL_INIT_EVERYTHING);
     atexit(SDL_Quit);
