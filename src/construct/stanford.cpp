@@ -24,13 +24,15 @@ struct StanfordModel : Model {
         // quantize values
         value /= 256 * 16;
         value *= 16;
+        /*
         unsigned int color_x = pos.x * 256 / width;
         unsigned int color_y = pos.y * 256 / height;
+        */
         return Leaf(value, value, value, value);
     }
 
     ~StanfordModel() override {
-        for (int i = 0; i < depth; i++) {
+        for (unsigned int i = 0; i < depth; i++) {
             delete[] data[i];
         }
         delete[] data;
@@ -62,7 +64,7 @@ struct StanfordModel : Model {
              std::string prefix,
              unsigned int num_slices) {
         uint16_t** buffer = new uint16_t*[num_slices];
-        for (int i = 0; i < num_slices; i++) {
+        for (unsigned int i = 0; i < num_slices; i++) {
             buffer[i] = read_slice(model_name, prefix, i+1);
         }
         return buffer;

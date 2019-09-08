@@ -1,4 +1,5 @@
 #include "construct.cpp"
+#include "zstream.cpp"
 #include "stanford.cpp"
 #include "generate.cpp"
 #include "../render/block.cpp"
@@ -55,17 +56,13 @@ Block* example() {
 
 void save_model(Model* model) {
     Block block(100000000);
-    construct(model, &block);
+    ZStream stream(model);
+    Builder builder(&block, stream.power);
+    while(!builder.is_done()) builder.add_leaf(stream.next());
     block.to_file(model->name);
 }
 
-#include "zstream.cpp"
 int main() {
-    ZStream z((Model*) generated());
-    while (z.is_open()) {
-        std::cout << z.next().index << " ";
-    }
-    return 0;
     //save_model(bunny());
     //save_model(brain());
     save_model(generated());

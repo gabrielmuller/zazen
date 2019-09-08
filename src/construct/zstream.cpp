@@ -1,9 +1,12 @@
     
 
 #include "int3.cpp"
+#include "indexedleaf.cpp"
+#include "model.cpp"
 #include <stack>
 #include <cstdint>
 #include <algorithm>
+#include <cmath>
 
 void f(int size, int3 offset) {
     if (size == 1) {
@@ -29,18 +32,11 @@ struct ZFrame {
             : size(size), offset(offset), i(i) {}
 };
 
-struct IndexedLeaf {
-    const Leaf leaf;
-    const unsigned int index;
-    IndexedLeaf(const Leaf leaf, const unsigned int index) : leaf(leaf), index(index) {}
-};
-
 class ZStream {
     const Model* model;
-    std::stack<ZFrame> stack;
-    bool _open;
     unsigned int index;
-    const unsigned int power;
+    bool _open;
+    std::stack<ZFrame> stack;
 
     int3 next_coords() {
         if (stack.top().size == 1) {
@@ -70,6 +66,7 @@ class ZStream {
     }
 
   public:
+    const unsigned int power;
     ZStream(Model* model) : model(model), index(0), _open(true), 
             power(std::log2(std::max({model->width, model->height, model->depth}))) {
 

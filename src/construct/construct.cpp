@@ -1,171 +1,120 @@
 #pragma once
 
-#include <iostream>
-#include "model.cpp"
 #include "../render/block.cpp"
-#include "../render/leaf.cpp"
 #include "../render/voxel.cpp"
-
-struct Node;
-
-enum Tag : uint8_t {UNDEFINED, LEAF, INTERNAL, INVALID};
-
-struct InternalNode {
-    // tags are stored in parent to pack properly inside 8 byte word
-    Tag tags[8];
-    Node* children[8];
-
-    explicit InternalNode() {
-        for (int i = 0; i < 8; i++) {
-            children[i] = nullptr;
-            tags[i] = UNDEFINED;
-        }
-    }
-};
+#include "indexedleaf.cpp"
 
 struct Node {
     union {
-        InternalNode* in;
-        Leaf* leaf;
+        Voxel voxel;
+        Leaf leaf;
     };
 
-    explicit Node() {}
-    Node(Leaf* leaf) : leaf(leaf) {}
-    Node(InternalNode* in) : in(in) {}
+    bool is_leaf;
+    bool is_valid;
+    explicit Node() : is_leaf(false), is_valid(false) {}
+    Node(Leaf& leaf) : leaf(leaf), is_leaf(true), is_valid(true) {}
+    Node(Voxel& voxel) : voxel(voxel), is_leaf(false), is_valid(true) {}
 };
 
-struct TaggedNode {
-    Node* node;
-    const Tag tag;
+class NodeQueue {
+    Node data[8];
+    uint8_t size = 0;
 
-    TaggedNode(Node* node, Tag tag) : node(node), tag(tag) {}
+  public:
+    void push(Node&& node) {
+        data[size] = node;
+        size++;
+    }
+
+    bool full() const {
+        return size == 8;
+    }
+
+    void collapse() {
+        size = 0;
+    }
+
+    Node& operator[](uint8_t index) {
+        return data[index];
+    }
 };
 
-int count;
+class Builder {
+    NodeQueue* queues;
+    Block* const block;
+    const unsigned int queue_count;
+    unsigned int stream_index = 0;
+    bool _is_done = false;
 
-TaggedNode create_tree(int size, int3 pos, const Model& model) {
-    if (pos.x >= model.width || pos.y >= model.height || pos.z >= model.depth) {
-        return TaggedNode(nullptr, INVALID);
+  public:
+    Builder(Block* block, const unsigned int queue_count) 
+            : block(block), queue_count(queue_count) {
+        queues = new NodeQueue[queue_count];
     }
 
-    if (size == 1) {
-        Leaf leaf = model.at(pos);
-        if (leaf.valid()) {
-            return TaggedNode(new Node(new Leaf(leaf)), LEAF);
-        }
-        return TaggedNode(nullptr, INVALID);
+    ~Builder() {
+        delete[] queues;
     }
 
-    InternalNode* in = new InternalNode();
+    void add_leaf(IndexedLeaf ileaf) {
+        int i = queue_count - 1;
+        Leaf leaf = ileaf.leaf;
+        unsigned int index = ileaf.index;
 
-    for (int i = 0; i < 8; i++) {
-        int xi = 4 & i ? pos.x : pos.x + size / 2;
-        int yi = 2 & i ? pos.y : pos.y + size / 2;
-        int zi = 1 & i ? pos.z : pos.z + size / 2;
+collapse:
+        while (queues[i].full()) {
+            /* Collapse full queue on top to a voxel in the queue below. */
+            NodeQueue& queue = queues[i];
+            Voxel parent;
+            parent.valid = 0;
+            parent.leaf = 0;
+            parent.child = block->size();
+            bool parent_is_leaf = true;
+            for (auto j = 0; j < 8; j++) {
+                Node& node = queue[j];
 
-        TaggedNode tree = create_tree(size / 2, int3(xi, yi, zi), model);
-        in->children[i] = tree.node;
-        in->tags[i] = tree.tag;
-    }
+                if (node.is_valid) {
+                    parent.valid ^= 1 << j;
+                } else {
+                    parent_is_leaf = false;
+                    break;
+                }
 
-    for (int i = 1; i < 8; i++) {
-        if (in->tags[0] != in->tags[i] ||
-            in->tags[i] == INTERNAL) {
-            // children of different nature or internal
-            count++;
-            return TaggedNode(new Node(in), INTERNAL);
-        }
-    }
+                if (node.is_leaf) {
+                    parent.leaf ^= 1 << j;
+                    new (block->slot()) Leaf(node.leaf);
+                    if (parent_is_leaf  && queue[0].leaf != node.leaf) {
+                        parent_is_leaf = false;
+                    }
+                } else {
+                    parent_is_leaf = false;
+                    new (block->slot()) Voxel(node.voxel);
+                }
+            }
+            i--;
+            if (i < 0) {
+                new (block->slot()) Voxel(parent);
+                _is_done = true;
+                return;
+            }
 
-    // at this point, the children are either all leaves or all invalid.
-    // if all invalid, returning first child works.
-    // if all leaves, only return first child if leaves are all equal.
-
-    bool all_equal = true;
-    Tag tag = in->tags[0];
-
-    if (tag == LEAF) {
-        for (int i = 1; i < 8; i++) {
-            if (*(in->children[0]->leaf) != *(in->children[i]->leaf)) {
-                all_equal = false;
-                break;
+            if (parent_is_leaf) {
+                queue.push(Node(queue[0].leaf));
+            } else {
+                queue.push(Node(parent));
             }
         }
-    }
 
-    if (all_equal) {
-        Node* child = in->children[0];
-        if (tag == LEAF) {
-            for (int i = 1; i < 8; i++) {
-                delete in->children[i]->leaf;
-                delete in->children[i];
-            }
+        if (stream_index + 1 < index) {
+            queues[0].push(Node());
+            stream_index++;
+            goto collapse;
         }
-        delete in;
-        return TaggedNode(child, tag);
+
+        queues[0].push(leaf);
+        stream_index++;
     }
 
-    // different children, return internal node
-    count++;
-    return TaggedNode(new Node(in), INTERNAL);
-}
-
-void flatten_tree(InternalNode* in,
-                  Block* block,
-                  Voxel* parent) {
-    parent->child = block->size();
-    parent->leaf  = 0x00;
-    parent->valid = 0xff;
-
-    Voxel* children[8]; // voxel children
-    unsigned int i_children[8]; // voxel child #j is #i_children[j] child
-    size_t n_children = 0; // number of voxel children
-
-    // FIRST LOOP: create children
-    for (int i = 0; i < 8; i++) {
-        switch (in->tags[i]) {
-            case LEAF:
-                new (block->slot()) Leaf(*(in->children[i]->leaf));
-                parent->leaf |= 1 << i;
-                break;
-            case INTERNAL:
-                children[n_children] = new (block->slot()) Voxel();
-                i_children[n_children] = i;
-                n_children++;
-                break;
-            case INVALID:
-                parent->valid ^= 1 << i;
-                break;
-        }
-    }
-
-    // SECOND LOOP: tell children to create their own children
-    for (int i = 0; i < n_children; i++) {
-        flatten_tree(in->children[i_children[i]]->in, block, children[i]);
-    }
-}
-        
-void construct(Model* model, Block* block, Voxel* root_voxel) {
-    count = 0;
-    TaggedNode root = create_tree(512, int3(0, 0, 0), *model);
-    std::cout << "Nodes:" << count << "\n";
-    delete model;
-    
-    switch (root.tag) {
-        case LEAF:
-            std::cout << "Leaf block.\n";
-            new (block->slot()) Leaf(*root.node->leaf);
-            return;
-        case INVALID:
-            std::cout << "Invalid block.\n";
-            return;
-    }
-
-    flatten_tree(root.node->in, block, root_voxel); 
-    std::cout << "Block created. (" << block->size() << "/"
-              << block->capacity() << ")\n";
-}
-
-inline void construct(Model* model, Block* block) {
-    return construct(model, block, new (block->slot()) Voxel());
-}
+    inline bool is_done() { return _is_done; }
+};

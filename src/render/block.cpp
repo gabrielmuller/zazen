@@ -47,11 +47,11 @@ struct Block {
         return front_slot;
     }
 
-    inline size_t size() {
+    inline size_t size() const {
         return front_index;
     }
 
-    inline size_t capacity() {
+    inline size_t capacity() const {
         return element_count;
     }
 
