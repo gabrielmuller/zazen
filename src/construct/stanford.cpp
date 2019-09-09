@@ -20,6 +20,9 @@ struct StanfordModel : Model {
     }
 
     Leaf at(int3 pos) const override {
+        if (pos.x >= width || pos.y >= height || pos.z >= depth) {
+            return Leaf();
+        }
         uint16_t value = data[pos.z][pos.y * width + pos.x];
         // quantize values
         value /= 256 * 16;
@@ -28,6 +31,7 @@ struct StanfordModel : Model {
         unsigned int color_x = pos.x * 256 / width;
         unsigned int color_y = pos.y * 256 / height;
         */
+        if (value < 0x80) value = 0;
         return Leaf(value, value, value, value);
     }
 

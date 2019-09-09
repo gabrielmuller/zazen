@@ -8,8 +8,8 @@
 #include "stack.cpp"
 #include "block.cpp"
 
-const unsigned int WIDTH = 300;
-const unsigned int HEIGHT = 300;
+const unsigned int WIDTH = 1024;
+const unsigned int HEIGHT = 1024;
 
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 1);

@@ -1,6 +1,6 @@
 all: build
 
-build: construct render run_construct
+build: construct render run_construct run_render
 
 run: build run_construct run_render
 
@@ -26,4 +26,4 @@ run_construct:
 	cd build; ./construct
 
 run_render:
-	cd build; ./render generated.zaz
+	cd build; ./render bunny.zaz

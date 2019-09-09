@@ -8,7 +8,7 @@ struct Ray {
 
     Ray() : origin(Vector()), direction(Vector()) {}
 
-    explicit Ray(const Vector origin, Vector direction) :
+    explicit Ray(const Vector& origin, Vector& direction) :
         origin(origin), init_origin(origin) {
             if (fabsf(direction.x) < e) direction.x = copysignf(e, direction.x);
             if (fabsf(direction.y) < e) direction.y = copysignf(e, direction.y);

@@ -42,16 +42,8 @@ class ZStream {
         if (stack.top().size == 1) {
             int3 ret(stack.top().offset);
             stack.pop();
-            
-            while (!stack.empty() && stack.top().i >= 8) {
-                stack.pop();
-            }
-
-            if (stack.empty()) {
-                _open = false;
-                return ret;
-            }
-
+            while (!stack.empty() && stack.top().i >= 8) stack.pop();
+            if (stack.empty()) _open = false;
             index++;
             return ret;
         }
@@ -78,10 +70,8 @@ class ZStream {
 
     inline IndexedLeaf next() {
         Leaf leaf;
-
-        do leaf = model->at(next_coords()); 
-        while (!leaf.valid() && index < stream_size);
-
+        do leaf = model->at(next_coords());
+        while (!leaf.valid() && is_open());
         return IndexedLeaf(leaf, index);
     }
 };

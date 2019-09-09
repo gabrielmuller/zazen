@@ -20,7 +20,7 @@ struct GenerateModel : Model {
         }
 
         const uint8_t value = 0x20;
-        return Leaf(value*(pos.x/mod), value*(pos.y/mod), value*(pos.z/mod), 0xff);
+        return Leaf(value*pos.x/mod, value*pos.y/mod, value*pos.z/mod, 0xff);
     }
 
     ~GenerateModel() override {}

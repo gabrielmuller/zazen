@@ -15,17 +15,17 @@ struct Leaf {
 
     Leaf(uint8_t v) : Leaf(v, v, v, v) {}
 
-    inline void set_color(unsigned char* pixel, float lightness) const {
+    inline void set_color(unsigned char* pixel, const float lightness) const {
         pixel[0] = r * lightness;
         pixel[1] = g * lightness;
         pixel[2] = b * lightness;
     }
 
-    inline bool valid() {
+    inline bool valid() const {
         return (bool) a;
     }
 
-    inline bool operator!=(Leaf& o) {
+    inline bool operator!=(const Leaf& o) const {
         return r != o.r || g != o.g || b != o.b || a != o.a;
     }
 };
