@@ -13,7 +13,7 @@ StanfordModel* brain() {
 }
 
 GenerateModel* generated() {
-    const unsigned int size = 1024;
+    const unsigned int size = 512;
     return new GenerateModel("generated", size, size, size);
 }
 
@@ -40,24 +40,30 @@ Block* example() {
 }
 
 void save_model(Model* model) {
-    Block block(100000000); // TODO: dynamic allocation
     ZStream stream(model);
-    Builder builder(&block, stream.power);
-    while(stream.is_open()) builder.add_leaf(stream.next());
-    block.to_file(model->name);
+    BlockWriter writer(model->name + ".zaz");
+    Builder builder(stream.power, writer);
+    unsigned int counter = 0;
+    while(stream.is_open()) {
+        builder.add_leaf(stream.next());
+        if (!(counter % 10000)) {
+            std::cout << "\r" << (int) (stream.progress() * 100) << "%"
+            << std::flush;
+        }
+        counter++;
+    }
+    std::cout << "\r";
 }
 
 int main() {
-    save_model(bunny());
-    //save_model(brain());
     Block* example_block = example();
     GenerateModel* gen = generated();
-    StanfordModel* bunny_model = bunny();
+    //StanfordModel* bunny_model = bunny();
     save_model(gen);
-    save_model(bunny_model);
+    //save_model(bunny_model);
     example_block->to_file("example");
     delete example_block;
     delete gen;
-    delete bunny_model;
+    //delete bunny_model;
     return 0;
 }

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "../render/block.cpp"
 #include "../render/voxel.cpp"
 #include "indexedleaf.cpp"
+#include "writer.cpp"
 #include <iostream>
+#include <cmath>
 
 struct Node {
     union {
@@ -14,8 +15,8 @@ struct Node {
     bool is_leaf;
     bool is_valid;
     explicit Node() : is_leaf(false), is_valid(false) {}
-    Node(const Leaf& leaf) : leaf(leaf), is_leaf(true), is_valid(true) {}
-    Node(const Voxel& voxel) : voxel(voxel), is_leaf(false), is_valid(true) {}
+    explicit Node(const Leaf& leaf) : leaf(leaf), is_leaf(true), is_valid(true) {}
+    explicit Node(const Voxel& voxel) : voxel(voxel), is_leaf(false), is_valid(true) {}
 };
 
 class NodeQueue {
@@ -30,6 +31,10 @@ class NodeQueue {
 
     bool full() const {
         return size == 8;
+    }
+
+    bool empty() const {
+        return !size;
     }
 
     void clear() {
@@ -58,9 +63,9 @@ class NodeQueue {
 
 class Builder {
     NodeQueue* queues;
-    Block* const block;
     const unsigned int queue_count;
-    unsigned int stream_index = 0;
+    unsigned long long int stream_index = 0;
+    BlockWriter& writer;
 
     void s() {
         std::cout << "\nIndex " << stream_index << "\n";
@@ -69,89 +74,91 @@ class Builder {
         return;
     }
 
-    void collapse() {
-        unsigned int i = 0;
-        while (queues[i].full()) {
-            /* Collapse full queue i to a voxel in queue (i + 1). */
+    void collapse(unsigned int i) {
+        /* Collapse full queue i to a voxel in queue (i + 1). */
 
-            NodeQueue& child_queue = queues[i];
+        /* Queue is not full, no need to collapse */
+        if (!queues[i].full()) return;
 
-            /* If parent is non-leaf, this voxel will be inserted. */
-            Voxel parent;
-            parent.valid = 0;
-            parent.leaf = 0;
-            parent.child = block->size();
+        NodeQueue& child_queue = queues[i];
 
-            /* True at the end when all 8 nodes are the same leaf.
-             * Therefore parent will also be that leaf.
-             */
-            bool parent_is_leaf = true;
+        /* If parent is non-leaf, this voxel will be inserted. */
+        Voxel parent;
+        parent.valid = 0;
+        parent.leaf = 0;
+        parent.child = writer.pos();
 
-            for (unsigned int j = 0; j < 8; j++) {
-                /* For each node j in this queue: */
+        /* True at the end when all 8 nodes are the same leaf.
+         * Therefore parent will also be that leaf.
+         */
+        bool parent_is_leaf = true;
 
-                /* Alias for current node */
-                const Node& node = child_queue[j];
+        for (unsigned int j = 0; j < 8; j++) {
+            /* For each node j in this queue: */
 
-                if (node.is_valid) {
-                    /* Valid node, mark parent mask. */
-                    parent.valid ^= 1 << j;
-                } else {
-                    /* Invalid node, go to next iteration. */
-                    parent_is_leaf = false;
-                    continue;
-                }
+            /* Alias for current node */
+            const Node& node = child_queue[j];
 
-                if (node.is_leaf) {
-                    /* Leaf node, mark parent mask. */
-                    parent.leaf ^= 1 << j;
-
-                    if (parent_is_leaf  && child_queue[0].leaf != node.leaf) {
-                        /* Node is a different leaf. */
-                        parent_is_leaf = false;
-                    }
-                } else {
-                    /* Non-leaf node, thus parent is not leaf. */
-                    parent_is_leaf = false;
-                }
-            }
-            i++; /* Now working with the (i + 1) queue. */
-            NodeQueue& parent_queue = queues[i];
-
-
-            Node to_push;
-            if (parent_is_leaf) {
-                /* Parent is leaf, enqueue leaf. */
-                to_push = Node(child_queue[0].leaf);
-            } else if (!parent.valid) {
-                /* No valid children, thus parent is invalid. */
-                to_push = Node();
+            if (node.is_valid) {
+                /* Valid node, mark parent mask. */
+                parent.valid ^= 1 << j;
             } else {
-                /* Parent is valid and non-leaf, write children and 
-                 * enqueue parent voxel. 
-                 */
-                for (unsigned int j = 0; j < 8; j++) {
-                    Node& node = child_queue[j];
-                    if (node.is_leaf)
-                        new (block->slot()) Leaf(node.leaf);
-                    else if (node.is_valid)
-                        new (block->slot()) Voxel(node.voxel);
+                /* Invalid node, go to next iteration. */
+                parent_is_leaf = false;
+                continue;
+            }
+
+            if (node.is_leaf) {
+                /* Leaf node, mark parent mask. */
+                parent.leaf ^= 1 << j;
+
+                if (parent_is_leaf  && child_queue[0].leaf != node.leaf) {
+                    /* Node is a different leaf. */
+                    parent_is_leaf = false;
                 }
-                to_push = Node(parent);
+            } else {
+                /* Non-leaf node, thus parent is not leaf. */
+                parent_is_leaf = false;
             }
-
-            if (i < queue_count) {
-                parent_queue.push(to_push);
-            }
-
-            /* All children have been collapsed, therefore clear. */
-            child_queue.clear();
         }
+        i++; /* Now working with the (i + 1) queue. */
+
+        Node to_push;
+        if (parent_is_leaf) {
+            /* Parent is leaf, enqueue leaf. */
+            to_push = Node(child_queue[0].leaf);
+        } else if (!parent.valid) {
+            /* No valid children, thus parent is invalid. */
+            to_push = Node();
+        } else {
+            /* Parent is valid and non-leaf, write children and 
+             * enqueue parent voxel. 
+             */
+            for (unsigned int j = 0; j < 8; j++) {
+                Node& node = child_queue[j];
+                if (node.is_leaf)
+                    writer << node.leaf;
+                else if (node.is_valid)
+                    writer << node.voxel;
+            }
+            to_push = Node(parent);
+        }
+
+        if (i < queue_count) push_at(to_push, i); // push to parent
+
+        /* All children have been collapsed, therefore clear. */
+        child_queue.clear();
     }
 
+    inline void push_at(const Node& node, const uint8_t index) {
+        queues[index].push(node);
+        collapse(index);
+    }
+
+
   public:
-    Builder(Block* block, const unsigned int queue_count) 
-            : block(block), queue_count(queue_count) {
+    Builder(const unsigned int queue_count, BlockWriter& writer) 
+            : queue_count(queue_count), writer(writer) {
         queues = new NodeQueue[queue_count];
     }
 
@@ -160,15 +167,31 @@ class Builder {
     }
 
     void add_leaf(const IndexedLeaf& ileaf) {
-        while (stream_index + 1 < ileaf.index) {
+        unsigned int leaf_count = ileaf.index - stream_index;
+        while (leaf_count > 0) {
             /* Push invalid nodes so the index catches up with the stream. */
-            queues[0].push(Node());
-            stream_index++;
-            collapse();
+            unsigned int power = 0;
+
+            if (leaf_count >= 8) {
+                power = std::floor(std::log(leaf_count) / std::log(8));
+            }
+
+            unsigned int non_empty_i = queue_count;
+
+            for (unsigned int i = 0; i < 8; i++) {
+                if (!queues[i].empty()) {
+                    non_empty_i = i;
+                    break;
+                }
+            }
+
+            unsigned int insert_i = std::min(power, non_empty_i);
+
+            Node to_push = ileaf.leaf.valid() ? Node(ileaf.leaf) : Node();
+            push_at(to_push, insert_i);
+            leaf_count -= std::pow(8, insert_i);
         } 
 
-        queues[0].push(ileaf.leaf.valid() ? Node(ileaf.leaf) : Node());
-        stream_index++;
-        collapse();
+        stream_index = ileaf.index;
     }
 };

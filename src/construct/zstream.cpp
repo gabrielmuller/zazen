@@ -34,8 +34,9 @@ struct ZFrame {
 
 class ZStream {
     const Model* model;
-    unsigned int index;
+    unsigned long long int index;
     bool _open;
+    Leaf stream_leaf;
     std::stack<ZFrame> stack;
 
     int3 next_coords() {
@@ -57,21 +58,33 @@ class ZStream {
         return next_coords();
     }
 
+
   public:
     const unsigned int power;
-    const unsigned int stream_size;
+    const unsigned long long int stream_size;
     ZStream(Model* model) : model(model), index(0), _open(true), 
             power(std::log2(std::max({model->width, model->height, model->depth}))),
-            stream_size(std::pow(2, power)) {
+            stream_size(std::pow(2, power * 3)) {
         stack.push(ZFrame(1 << power, int3(0, 0, 0), 0));
+        stream_leaf = model->at(next_coords());
     }
 
     inline bool is_open() { return _open; }
 
+    inline float progress() {
+        return (float) index / stream_size;
+    }
+
     inline IndexedLeaf next() {
-        Leaf leaf;
-        do leaf = model->at(next_coords());
-        while (!leaf.valid() && is_open());
-        return IndexedLeaf(leaf, index);
+        Leaf prev_leaf = stream_leaf;
+        while (stream_leaf == prev_leaf) {
+            if (!is_open()) {
+                prev_leaf = stream_leaf;
+                index++;
+                break;
+            }
+            stream_leaf = model->at(next_coords());
+        }
+        return IndexedLeaf(prev_leaf, index - 1);
     }
 };

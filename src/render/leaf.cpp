@@ -28,4 +28,8 @@ struct Leaf {
     inline bool operator!=(const Leaf& o) const {
         return r != o.r || g != o.g || b != o.b || a != o.a;
     }
+
+    inline bool operator==(const Leaf& o) const {
+        return !(*this != o);
+    }
 };
