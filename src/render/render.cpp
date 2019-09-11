@@ -8,29 +8,29 @@
 #include "stack.cpp"
 #include "block.cpp"
 
-const unsigned int WIDTH = 300;
-const unsigned int HEIGHT = 300;
+const unsigned int WIDTH = 512;
+const unsigned int HEIGHT = 512;
 
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 1);
-unsigned char texture[WIDTH][HEIGHT][3];             
+Ray cam_center;
 
 Block* block = nullptr;
 
-void render(unsigned char* pixel, int i, int j, int t) {
+void render(unsigned char* pixel, unsigned int i, unsigned int j) {
+    if (i == 214 && j == 214) {
+        std::cout << "HELLo\n";
+    }
     const float screen_x = (i * fov) / (float) WIDTH - 0.5;
     const float screen_y = (j * fov) / (float) HEIGHT - 0.5;
 
-    const float time = t / 60.0F;
-
     // start traverse on root voxel
-    Vector origin(sin(time)*0.9, sin(time/3.21) * 0.9 + 1.1, cos(time/1.12)*0.9);
     Vector direction(screen_x * scale.x, -1 * scale.y, screen_y * scale.z);
 
-    Ray ray(origin, direction);
+    Ray ray(cam_center.origin, direction);
 
     VoxelStack stack(20, 2.0);
-    stack.push_root(&block->get<Voxel>(0), Vector(-1, -1, -1), ray);
+    stack.push_root(&block->back<Voxel>(), Vector(-1, -1, -1), ray);
 
     pixel[0] = 0x33;
     pixel[1] = 0x33;
@@ -43,17 +43,15 @@ void render(unsigned char* pixel, int i, int j, int t) {
         bool leaf = (stack->voxel->leaf >> oct) & 1;
         if (leaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            Leaf* leaf = &block->get<Leaf>(stack->voxel->address_of(oct));
-            ray.distance *= 0.2;
-            ray.distance += 1;
-            float lightness = 1/(ray.distance * ray.distance);
+            Leaf* leaf = &block->at<Leaf>(stack->voxel->address_of(oct));
+            float lightness = 1/(ray.square_distance() + 1);
             leaf->set_color(pixel, lightness);
             break;
         } 
 
         if (valid) {
             /* Go a level deeper. */
-            stack.push(&block->get<Voxel>(stack->voxel->address_of(oct)), ray);
+            stack.push(&block->at<Voxel>(stack->voxel->address_of(oct)), ray);
 
             pixel[1] += (0xff - pixel[1]) / 64;
 
@@ -62,6 +60,11 @@ void render(unsigned char* pixel, int i, int j, int t) {
              * voxel. 
              */
             Vector child_corner(stack->corner);
+
+            const auto& e = std::numeric_limits<float>::epsilon();
+            if (fabs(child_corner.x - ray.origin.x) < e) ray.origin.x += 0.1;
+            if (fabs(child_corner.y - ray.origin.y) < e) ray.origin.y += 0.1;
+            if (fabs(child_corner.z - ray.origin.z) < e) ray.origin.z += 0.1;
 
             float child_size = stack.box_size * 0.5;
             child_corner.adjust_corner(child_size, oct);

@@ -5,7 +5,7 @@
 #include <vector>
 #include "model.cpp"
 #include "../render/leaf.cpp"
-#include "../render/sep.cpp"
+#include "sep.cpp"
 
 const std::string base_path(std::string("..") + sep + std::string("models"));
 
@@ -19,18 +19,24 @@ struct StanfordModel : Model {
         data = read_model(name, prefix, depth);
     }
 
-    Leaf get(unsigned int x, unsigned int y, unsigned int z) const override {
-        uint16_t value = data[z][y * width + x];
+    Leaf at(int3 pos) const override {
+        if (pos.x >= width || pos.y >= height || pos.z >= depth) {
+            return Leaf();
+        }
+        uint16_t value = data[pos.z][pos.y * width + pos.x];
         // quantize values
         value /= 256 * 16;
         value *= 16;
-        unsigned int color_x = x * 256 / width;
-        unsigned int color_y = y * 256 / height;
+        /*
+        unsigned int color_x = pos.x * 256 / width;
+        unsigned int color_y = pos.y * 256 / height;
+        */
+        if (value < 0x80) value = 0;
         return Leaf(value, value, value, value);
     }
 
     ~StanfordModel() override {
-        for (int i = 0; i < depth; i++) {
+        for (unsigned int i = 0; i < depth; i++) {
             delete[] data[i];
         }
         delete[] data;
@@ -62,7 +68,7 @@ struct StanfordModel : Model {
              std::string prefix,
              unsigned int num_slices) {
         uint16_t** buffer = new uint16_t*[num_slices];
-        for (int i = 0; i < num_slices; i++) {
+        for (unsigned int i = 0; i < num_slices; i++) {
             buffer[i] = read_slice(model_name, prefix, i+1);
         }
         return buffer;

@@ -59,11 +59,11 @@ struct VoxelStack {
         return top;
     }
 
-    inline uint8_t get_octant (Ray ray) const {
+    inline uint8_t get_octant (const Ray& ray) const {
         /* Returns which octant the vector resides inside box. */
         uint8_t octant = 0;
         const float oct_size = box_size * 0.5;
-        Vector& corner = peek().corner;
+        const Vector& corner = peek().corner;
 
         if (ray.origin.x > corner.x + oct_size) octant ^= 4;
         if (ray.origin.y > corner.y + oct_size) octant ^= 2;

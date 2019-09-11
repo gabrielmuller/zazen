@@ -1,49 +1,56 @@
-#include <GL/glut.h>
-#include <GL/glut.h>
+#define SDL_MAIN_HANDLED
+
+#ifndef HEADLESS
+
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_render.h>
+SDL_Texture* texture;
+SDL_Renderer* renderer;
+
+#endif
+
 #include "render.cpp"
 
-int t = 0;
-void render_scene() {
-    fflush(stdout);
 
-    #pragma omp parallel for
-    for (int  i = 0; i < WIDTH; i++) {
-        for (int j = 0; j < HEIGHT; j++) {
-            render(texture[j][i], i, j, t);
+unsigned char pixels[WIDTH][HEIGHT][4];
+
+void render_scene(unsigned int tick) {
+#ifndef HEADLESS
+    SDL_RenderClear(renderer);
+#endif
+
+    const float time = tick / 60.0F;
+    /*
+    cam_center.origin = Vector(sin(time)*0.9,
+                               sin(time/3.21) * 0.9 + 1.1,
+                               cos(time/1.12)*0.9);
+                               */
+    cam_center.origin = Vector(-1, -2, -1);
+
+    #pragma omp parallel for schedule(dynamic)
+    for (unsigned int i = 0; i < WIDTH; i++) {
+        for (unsigned int j = 0; j < HEIGHT; j++) {
+            render(pixels[j][i], i, j);
         }
     }
 
-    t++;
-    glEnable (GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+#ifndef HEADLESS
+    SDL_UpdateTexture(
+        texture,
+        nullptr,
+        pixels,
+        WIDTH * 4
+    );
 
-    glTexImage2D (
-            GL_TEXTURE_2D,
-            0,
-            GL_RGB,
-            WIDTH,
-            HEIGHT,
-            0,
-            GL_RGB,
-            GL_UNSIGNED_BYTE,
-            texture
-            );
-
-    glBegin(GL_QUADS);
-    glTexCoord2f(0.0f, 0.0f); glVertex2f(-1.0, -1.0);
-    glTexCoord2f(1.0f, 0.0f); glVertex2f( 1.0, -1.0);
-    glTexCoord2f(1.0f, 1.0f); glVertex2f( 1.0,  1.0);
-    glTexCoord2f(0.0f, 1.0f); glVertex2f(-1.0,  1.0);
-    glEnd();
-
-    glFlush();
-    glutSwapBuffers();
-    glutPostRedisplay();
+    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+    SDL_RenderPresent(renderer);
+#endif
 }
 
-int main(int argc, char **argv) {
 
-    unsigned int arg = 1;
+int main(int argc, char **argv) {
+    const int arg = 1;
+
     if (arg >= argc) {
         std::cout << "Please specify an input file.\n";
         return 1;
@@ -51,16 +58,45 @@ int main(int argc, char **argv) {
 
     block = from_file(argv[arg]);
 
-    glutInit(&argc, argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+#ifdef HEADLESS
+    for (unsigned int tick = 0; ; tick++) render_scene(tick);
+#else
 
-    glutInitWindowPosition(100, 100);
-    glutInitWindowSize(WIDTH, HEIGHT);
-    glutCreateWindow(" ");
+    SDL_Init(SDL_INIT_EVERYTHING);
+    atexit(SDL_Quit);
 
-    glutDisplayFunc(render_scene);
-    glutIdleFunc(render_scene);
-    glutMainLoop();
+    SDL_Window* window = SDL_CreateWindow(
+            "zazen",
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+            WIDTH, HEIGHT,
+            SDL_WINDOW_SHOWN
+    );
 
+    renderer = SDL_CreateRenderer(
+        window, 
+        -1,
+        SDL_RENDERER_ACCELERATED
+    );
+
+    texture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_BGR888,
+        SDL_TEXTUREACCESS_STREAMING,
+        WIDTH, HEIGHT
+    );
+
+    SDL_Event event;
+
+
+    bool running = true;
+    for (unsigned int tick = 0; running; tick++) {
+        while (SDL_PollEvent(&event)) if (event.type == SDL_QUIT) running = false;
+        render_scene(tick);
+    }
+
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
     return 0;
+#endif
 }

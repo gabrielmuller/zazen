@@ -4,40 +4,56 @@
 
 struct Block {
   private:
-    static const std::size_t ELEMENT_SIZE = 8;
     const size_t element_count;
     char* data = nullptr;
     char* front = nullptr;
-    size_t front_index = 0;
+    size_t front_index;
 
   public:
+    static const std::size_t ELEMENT_SIZE = 8;
     static const std::string EXTENSION;
 
-    explicit Block(size_t element_count) :
+    Block(size_t element_count, bool full = false) :
             element_count(element_count) {
-        data = new char[element_count * ELEMENT_SIZE];
-        front = data;
+        const size_t size = element_count * ELEMENT_SIZE;
+        data = new char[size];
+        if (full) { 
+            front = data + size;
+            front_index = element_count;
+        } else {
+            front = data;
+            front_index = 0;
+        }
     }
 
     ~Block() {
         delete[] data;
     }
 
-    inline void read_from_stream(std::ifstream& stream, size_t count) {
-        stream.read(front, count * ELEMENT_SIZE);
+    inline void read_from_stream(std::ifstream& stream, std::streamsize size) {
+        stream.read(data, size);
     }
 
     void to_file(std::string filename) {
         filename += EXTENSION;
         std::ofstream stream(filename, std::ios::binary);
-        stream.write((char*) &front_index, sizeof(size_t));
-        stream.write(data, size() * ELEMENT_SIZE);
-        std::cout << "File \"" << filename << "\" saved to disk.\n";
+        if (stream.good()) {
+            stream.write(data, size() * ELEMENT_SIZE);
+            stream.write((char*) &front_index, sizeof(size_t));
+            std::cout << "File '" << filename << "' saved to disk.\n";
+        } else {
+            std::cout << "Could not open file '" << filename << ".\n";
+        }
     }
 
-    template <class T>
-    T& get(const int32_t index) const {
+    template <typename T>
+    T& at(const int32_t index) const {
         return ((T*) data)[index];
+    }
+
+    template <typename T>
+    inline T& back() const {
+        return at<T>(size() - 1);
     }
 
     char* slot() {
@@ -47,11 +63,11 @@ struct Block {
         return front_slot;
     }
 
-    inline size_t size() {
+    inline size_t size() const {
         return front_index;
     }
 
-    inline size_t capacity() {
+    inline size_t capacity() const {
         return element_count;
     }
 
@@ -60,14 +76,13 @@ struct Block {
 const std::string Block::EXTENSION = ".zaz";
 
 Block* from_file(std::string filename) {
-    std::ifstream stream(filename, std::ios::binary);
+    std::ifstream stream(filename, std::ios::binary | std::ios::ate);
 
-    char length_buffer[sizeof(size_t)];
-    stream.read(length_buffer, sizeof(size_t));
+    std::streamsize size = stream.tellg();
+    stream.seekg(0, std::ios::beg);
 
-    size_t count = *((size_t*) length_buffer);
-    Block* block = new Block(count);
-    block->read_from_stream(stream, count);
+    Block* block = new Block(size / Block::ELEMENT_SIZE, true);
+    block->read_from_stream(stream, size);
 
     std::cout << "File \"" << filename << "\" loaded from disk.\n";
     return block;

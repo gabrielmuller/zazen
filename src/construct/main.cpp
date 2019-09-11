@@ -1,4 +1,5 @@
 #include "construct.cpp"
+#include "zstream.cpp"
 #include "stanford.cpp"
 #include "generate.cpp"
 #include "../render/block.cpp"
@@ -12,57 +13,57 @@ StanfordModel* brain() {
 }
 
 GenerateModel* generated() {
-    return new GenerateModel("generated", 1024, 1024, 1024);
+    const unsigned int size = 512;
+    return new GenerateModel("generated", size, size, size);
 }
 
 Block* example() {
-    Block* block = new Block(11);
-    Voxel* p = new (block->slot()) Voxel();
+    Block* block = new Block(5);
 
-    p->child = block->size();
-    new (block->slot()) Leaf(0x33, 0x22, 0x00, 0xff);
-    Voxel* c = new (block->slot()) Voxel();
-    Voxel* d = new (block->slot()) Voxel();
+    auto e_child = block->size();
 
-    c->child = block->size();
-    new (block->slot()) Leaf(0xff, 0x88, 0x11, 0xff);
-    new (block->slot()) Leaf(0xff, 0xff, 0x00, 0xff);
-
-
-    d->child = block->size();
-    new (block->slot()) Leaf(0x01, 0xff, 0x80, 0xff);
-    Voxel* e = new (block->slot()) Voxel();
-
-    e->child = block->size();
-    new (block->slot()) Leaf(0xff, 0x33, 0x33, 0xff);
-    new (block->slot()) Leaf(0xff, 0xaa, 0xaa, 0xff);
     new (block->slot()) Leaf(0xff, 0xff, 0xff, 0xff);
+    new (block->slot()) Leaf(0xff, 0xaa, 0xaa, 0xff);
+    new (block->slot()) Leaf(0xff, 0x33, 0x33, 0xff);
 
-    p->valid = 0x8a;
-    p->leaf = 0x02;
+    auto p_child = block->size();
+    Voxel* e = new (block->slot()) Voxel();
+    e->child = e_child;
+    e->valid = e->leaf = 0xa2;
 
-    c->valid = 0x82;
-    c->leaf = 0x82;
-
-    d->valid = 0x82;
-    d->leaf = 0x02;
-
-    e->valid = 0xa2;
-    e->leaf = 0xa2;
+    Voxel* p = new (block->slot()) Voxel();
+    p->child = p_child;
+    p->valid = 0x80;
+    p->leaf = 0x00;
 
     return block;
 }
 
 void save_model(Model* model) {
-    Block block(100000000);
-    construct(model, &block);
-    block.to_file(model->name);
+    ZStream stream(model);
+    BlockWriter writer(model->name + ".zaz");
+    Builder builder(stream.power, writer);
+    unsigned int counter = 0;
+    while(stream.is_open()) {
+        builder.add_leaf(stream.next());
+        if (!(counter % 10000)) {
+            std::cout << "\r" << (int) (stream.progress() * 100) << "%"
+            << std::flush;
+        }
+        counter++;
+    }
+    std::cout << "\r";
 }
 
 int main() {
-    //save_model(bunny());
-    //save_model(brain());
-    save_model(generated());
-    example()->to_file("example");
+    Block* example_block = example();
+    GenerateModel* gen = generated();
+    //StanfordModel* bunny_model = bunny();
+    save_model(gen);
+    //save_model(bunny_model);
+    example_block->to_file("example");
+    delete example_block;
+    delete gen;
+    //delete bunny_model;
     return 0;
 }

@@ -7,3 +7,5 @@
 *.zip
 models/*
 build/*
+*~
+*.zaz
