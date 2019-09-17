@@ -2,8 +2,11 @@
 
 #ifndef HEADLESS
 
+#define GLEW_STATIC
+#include <GL/glew.h>
+
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_opengl.h>
 SDL_Texture* texture;
 SDL_Renderer* renderer;
 
@@ -59,39 +62,46 @@ int main(int argc, char **argv) {
     for (unsigned int tick = 0; ; tick++) render_scene(tick);
 #else
 
-    SDL_Init(SDL_INIT_EVERYTHING);
+    SDL_Init(SDL_INIT_VIDEO);
     atexit(SDL_Quit);
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+
 
     SDL_Window* window = SDL_CreateWindow(
             "zazen",
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
             WIDTH, HEIGHT,
-            SDL_WINDOW_SHOWN
+            SDL_WINDOW_OPENGL
     );
 
-    renderer = SDL_CreateRenderer(
-        window, 
-        -1,
-        SDL_RENDERER_ACCELERATED
-    );
+    SDL_GLContext context = SDL_GL_CreateContext(window);
 
-    texture = SDL_CreateTexture(
-        renderer,
-        SDL_PIXELFORMAT_BGR888,
-        SDL_TEXTUREACCESS_STREAMING,
-        WIDTH, HEIGHT
-    );
+    glewExperimental = GL_TRUE;
+    glewInit();
+
+    GLuint vertexBuffer;
+    glGenBuffers(1, &vertexBuffer);
+    std::cout << vertexBuffer << " vertex buffer\n";
 
     SDL_Event event;
 
 
     bool running = true;
     for (unsigned int tick = 0; running; tick++) {
-        while (SDL_PollEvent(&event)) if (event.type == SDL_QUIT) running = false;
-        render_scene(tick);
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+        }
+        //render_scene(tick);
+        SDL_GL_SwapWindow(window);
     }
 
-    SDL_DestroyRenderer(renderer);
+    SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;

@@ -9,7 +9,7 @@ clean:
 	mkdir build
 
 render:
-	g++ -Wall -Wextra -O3 -Ofast src/render/main.cpp -fopenmp -lSDL2 -o build/render
+	g++ -Wall -Wextra -O3 -Ofast src/render/main.cpp -fopenmp -lSDL2 -lGLEW -o build/render
 
 construct:
 	g++ -Wall -Wextra -O3 -Ofast src/construct/main.cpp -o build/construct
