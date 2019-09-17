@@ -8,21 +8,6 @@
 #include <algorithm>
 #include <cmath>
 
-void f(int size, int3 offset) {
-    if (size == 1) {
-        std::cout << offset.x << " " << offset.y << " " << offset.z << "\n";
-        return;
-    }
-    size /= 2;
-    for (uint8_t i = 0; i < 8; i++) {
-        int3 o(offset);
-        if (i & 4) o.x += size;
-        if (i & 2) o.y += size;
-        if (i & 1) o.z += size;
-        f(size, o);
-    }
-}
-
 struct ZFrame {
     const unsigned int size;
     const int3 offset;
@@ -75,7 +60,7 @@ class ZStream {
         return (float) index / stream_size;
     }
 
-    inline IndexedLeaf next() {
+    IndexedLeaf next() {
         Leaf prev_leaf = stream_leaf;
         while (stream_leaf == prev_leaf) {
             if (!is_open()) {
