@@ -1,8 +1,12 @@
 #version 150 core
+
+uniform vec2 viewportSize;
+uniform float time;
+in vec4 gl_FragCoord;
+
 out vec4 outColor;
 
 void main() {
-    for (int i = 0; i < 5; i++) {
-        outColor = vec4(1.0, 0.7, 1.0, 1.0);
-    }
+    vec2 coords = gl_FragCoord.xy / viewportSize;
+    outColor = vec4(coords.xy, abs(sin(time)), 1.0);
 }

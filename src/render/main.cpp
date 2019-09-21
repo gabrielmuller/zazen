@@ -70,9 +70,9 @@ int main(int argc, char **argv) {
     glewInit();
 
     float vertices[] = {
-         0.0f,  0.5f, // Vertex 1 (X, Y)
-         0.5f, -0.5f, // Vertex 2 (X, Y)
-        -0.5f, -0.5f  // Vertex 3 (X, Y)
+        -1.0f, -1.0f, // Vertex 1 (X, Y)
+         3.0f, -1.0f, // Vertex 2 (X, Y)
+        -1.0f,  3.0f  // Vertex 3 (X, Y)
     };
 
     // create vao
@@ -133,6 +133,11 @@ int main(int argc, char **argv) {
     glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(posAttrib);
 
+    GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
+    glUniform2f(viewportSize, WIDTH, HEIGHT);
+
+    GLint time = glGetUniformLocation(shaderProgram, "time");
+
     SDL_Event event;
 
     bool running = true;
@@ -142,7 +147,9 @@ int main(int argc, char **argv) {
                 running = false;
             }
         }
+
         glDrawArrays(GL_TRIANGLES, 0, 3);
+        glUniform1f(time, tick / 60.0f);
         //render_scene(tick);
         SDL_GL_SwapWindow(window);
     }
