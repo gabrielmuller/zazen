@@ -80,6 +80,21 @@ int main(int argc, char **argv) {
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
+    std::cout << GL_MAX_TEXTURE_BUFFER_SIZE << " buffer size\n";
+
+    char svo[] = "Hello world!";
+    // create buffer (SVO block)
+    GLuint buf;
+    glGenBuffers(1, &buf);
+    glBindBuffer(GL_ARRAY_BUFFER, buf);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(svo), svo, GL_STATIC_DRAW);
+
+    // create texture (SVO block)
+    GLuint tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_BUFFER, tex);
+    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8, buf);
+
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -135,6 +150,9 @@ int main(int argc, char **argv) {
 
     GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
     glUniform2f(viewportSize, WIDTH, HEIGHT);
+
+    GLint svoData = glGetUniformLocation(shaderProgram, "svoData");
+    glUniform1i(svoData, 0);
 
     GLint time = glGetUniformLocation(shaderProgram, "time");
 
