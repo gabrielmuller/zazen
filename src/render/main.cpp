@@ -75,32 +75,31 @@ int main(int argc, char **argv) {
         -1.0f,  3.0f  // Vertex 3 (X, Y)
     };
 
-    // create vao
+    // Create Shader Storage Buffer Object that will store SVO data
+    GLuint ssbo;
+    glGenBuffers(1, &ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
+    glBufferData(
+        GL_SHADER_STORAGE_BUFFER,
+        block->byte_size(),
+        block->data(),
+        GL_DYNAMIC_READ
+    );
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+
+    // Create vertex array object
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    std::cout << GL_MAX_TEXTURE_BUFFER_SIZE << " buffer size\n";
-
-    char svo[] = "Hello world!";
-    // create buffer (SVO block)
-    GLuint buf;
-    glGenBuffers(1, &buf);
-    glBindBuffer(GL_ARRAY_BUFFER, buf);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(svo), svo, GL_STATIC_DRAW);
-
-    // create texture (SVO block)
-    GLuint tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_BUFFER, tex);
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R8, buf);
-
+    // Create vertex buffer object
     GLuint vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // read shaders from file
+    // Read shaders from file
     std::string vs = read_file("svo.vert");
     const char* vertexSource = vs.c_str();
     std::string fs = read_file("svo.frag");
@@ -109,8 +108,7 @@ int main(int argc, char **argv) {
     char buffer[512];
     GLint status;
 
-    // setup vertex shader
-
+    // Setup vertex shader
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertexShader, 1, &vertexSource, NULL);
 
@@ -119,10 +117,9 @@ int main(int argc, char **argv) {
 
     glGetShaderInfoLog(vertexShader, 512, NULL, buffer);
 
-    std::cout << status << " = status\nlog: " << buffer << "\n";
+    if (status != 1) std::cout << "Vert shader compilation error\n" << buffer;
 
-
-    // setup fragment shader
+    // Setup fragment shader
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
 
@@ -131,9 +128,9 @@ int main(int argc, char **argv) {
 
     glGetShaderInfoLog(fragmentShader, 512, NULL, buffer);
 
-    std::cout << status << " = status\nlog: " << buffer << "\n";
+    if (status != 1) std::cout << "Frag shader compilation error\n" << buffer;
 
-    // create shader program
+    // Create shader program
 
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
@@ -143,16 +140,14 @@ int main(int argc, char **argv) {
     glLinkProgram(shaderProgram);
     glUseProgram(shaderProgram);
 
-    // specify position vertex attribute
+    // Specify position vertex attribute
     GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
     glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(posAttrib);
 
     GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
-    glUniform2f(viewportSize, WIDTH, HEIGHT);
+    glUniform2ui(viewportSize, WIDTH, HEIGHT);
 
-    GLint svoData = glGetUniformLocation(shaderProgram, "svoData");
-    glUniform1i(svoData, 0);
 
     GLint time = glGetUniformLocation(shaderProgram, "time");
 
@@ -168,11 +163,10 @@ int main(int argc, char **argv) {
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glUniform1f(time, tick / 60.0f);
-        //render_scene(tick);
         SDL_GL_SwapWindow(window);
     }
 
-    // clean up and exit
+    // Clean up and exit
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();

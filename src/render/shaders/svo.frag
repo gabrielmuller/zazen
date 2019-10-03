@@ -1,13 +1,25 @@
-#version 150 core
+#version 430 core
 
-uniform vec2 viewportSize;
+uniform uvec2 viewportSize;
 uniform float time;
 uniform sampler1D svoData;
 in vec4 gl_FragCoord;
 
 out vec4 outColor;
 
+layout (binding = 2, std430) buffer svo {
+    uint[] data;
+};
+
 void main() {
-    vec2 coords = gl_FragCoord.xy / viewportSize;
-    outColor = vec4(texelFetch(svoData, 0, 0));
+    uint i = uint(gl_FragCoord.y + time*time*100) * viewportSize.x + uint(gl_FragCoord.x);
+    uint icol = data[i];
+    vec4 color = vec4(
+        icol & 0xff,
+        (icol >> 8) & 0xff,
+        (icol >> 16) & 0xff,
+        (icol >> 24) & 0xff
+    );
+    color /= 0xff;
+    outColor = color;
 }
