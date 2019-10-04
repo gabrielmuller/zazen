@@ -11,7 +11,7 @@
 
 unsigned char pixels[WIDTH][HEIGHT][4];
 
-std::string read_file(const char* filename) {
+std::string read_file(std::string filename) {
     std::string content;
     std::ifstream stream(filename, std::ios::in);
 
@@ -27,7 +27,6 @@ std::string read_file(const char* filename) {
         content.append(line + "\n");
     }
 
-    stream.close();
     return content;
 }
 
@@ -36,6 +35,29 @@ void position_camera(unsigned int tick) {
     cam_center.origin = Vector(sin(time)*0.9,
                                sin(time/3.21) * 0.9 + 1.1,
                                cos(time/1.12)*0.9);
+}
+
+bool compile_shader(GLuint shader, std::string filename) {
+    // Read shaders from file
+    std::string source_str = read_file(filename);
+    const char* source = source_str.c_str();
+
+    char buffer[512];
+    GLint status;
+
+    // Setup vertex shader
+    glShaderSource(shader, 1, &source, NULL);
+
+    glCompileShader(shader);
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &status);
+
+    glGetShaderInfoLog(shader, 512, NULL, buffer);
+
+    if (status != 1) {
+        std::cout << "Error compiling '" << filename << "':\n" << buffer;
+        return false;
+    }
+    return true;
 }
 
 int main(int argc, char **argv) {
@@ -76,6 +98,7 @@ int main(int argc, char **argv) {
     };
 
     // Create Shader Storage Buffer Object that will store SVO data
+    /*
     GLuint ssbo;
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
@@ -87,6 +110,7 @@ int main(int argc, char **argv) {
     );
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+    */
 
     // Create vertex array object
     GLuint vao;
@@ -99,45 +123,21 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // Read shaders from file
-    std::string vs = read_file("svo.vert");
-    const char* vertexSource = vs.c_str();
-    std::string fs = read_file("svo.frag");
-    const char* fragmentSource = fs.c_str();
-
-    char buffer[512];
-    GLint status;
-
-    // Setup vertex shader
+    // Allocate shaders and assemble program
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexSource, NULL);
-
-    glCompileShader(vertexShader);
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &status);
-
-    glGetShaderInfoLog(vertexShader, 512, NULL, buffer);
-
-    if (status != 1) std::cout << "Vert shader compilation error\n" << buffer;
-
-    // Setup fragment shader
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
-
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &status);
-
-    glGetShaderInfoLog(fragmentShader, 512, NULL, buffer);
-
-    if (status != 1) std::cout << "Frag shader compilation error\n" << buffer;
-
-    // Create shader program
 
     GLuint shaderProgram = glCreateProgram();
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
-    // glBindFragDataLocation ...
 
-    glLinkProgram(shaderProgram);
+    if (
+        compile_shader(vertexShader, "svo.vert") &&
+        compile_shader(fragmentShader, "svo.frag")
+    ) {
+        glLinkProgram(shaderProgram);
+    }
+
     glUseProgram(shaderProgram);
 
     // Specify position vertex attribute
@@ -146,23 +146,30 @@ int main(int argc, char **argv) {
     glEnableVertexAttribArray(posAttrib);
 
     GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
-    glUniform2ui(viewportSize, WIDTH, HEIGHT);
-
-
     GLint time = glGetUniformLocation(shaderProgram, "time");
 
     SDL_Event event;
 
     bool running = true;
     for (unsigned int tick = 0; running; tick++) {
+        // XXX: this is a dev tool. Remove later
+        if (!(tick % 30))
+        if (
+            compile_shader(fragmentShader, "svo.frag")
+        ) {
+            glLinkProgram(shaderProgram);
+            glUniform2ui(viewportSize, WIDTH, HEIGHT);
+        }
+        // XXX end
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
             }
         }
 
-        glDrawArrays(GL_TRIANGLES, 0, 3);
         glUniform1f(time, tick / 60.0f);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
         SDL_GL_SwapWindow(window);
     }
 
