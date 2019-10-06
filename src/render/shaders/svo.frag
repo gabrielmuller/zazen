@@ -24,8 +24,10 @@ void main() {
     outColor = color;
 }
 
+/*
 void main() {
     vec2 uv = gl_FragCoord.xy / viewportSize;
     outColor = vec4(abs(sin(time*1.)), uv, 1.0);
 
 }
+*/

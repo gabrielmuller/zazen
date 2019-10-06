@@ -98,7 +98,6 @@ int main(int argc, char **argv) {
     };
 
     // Create Shader Storage Buffer Object that will store SVO data
-    /*
     GLuint ssbo;
     glGenBuffers(1, &ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
@@ -110,7 +109,6 @@ int main(int argc, char **argv) {
     );
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, ssbo);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
-    */
 
     // Create vertex array object
     GLuint vao;
