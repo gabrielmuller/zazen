@@ -30,8 +30,7 @@ std::string read_file(std::string filename) {
     return content;
 }
 
-void position_camera(unsigned int tick) {
-    const float time = tick / 60.0F;
+void position_camera(const float time) {
     cam_center.origin = Vector(sin(time)*0.9,
                                sin(time/3.21) * 0.9 + 1.1,
                                cos(time/1.12)*0.9);
@@ -69,6 +68,13 @@ int main(int argc, char **argv) {
     }
 
     block = from_file(argv[arg]);
+    Voxel root = block->back<Voxel>();
+    uint64_t root_i = *((uint64_t *) &root);
+    std::cout << "cccc/v/l " << std::hex << root.child << "/" <<
+    std::hex << (int) root.valid << "/" << 
+    std::hex << (int) root.leaf << "\n";
+    std::cout << "64 " << std::hex << root_i << "\n";
+    std::cout << "size " << block->size();
 
     SDL_Init(SDL_INIT_VIDEO);
     atexit(SDL_Quit);
@@ -131,7 +137,7 @@ int main(int argc, char **argv) {
 
     if (
         compile_shader(vertexShader, "svo.vert") &&
-        compile_shader(fragmentShader, "svo.frag")
+        compile_shader(fragmentShader,  "../src/render/shaders/svo.frag")
     ) {
         glLinkProgram(shaderProgram);
     }
@@ -145,18 +151,29 @@ int main(int argc, char **argv) {
 
     GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
     GLint time = glGetUniformLocation(shaderProgram, "time");
+    GLint camPos = glGetUniformLocation(shaderProgram, "camPos");
+    GLint modelSize = glGetUniformLocation(shaderProgram, "modelSize");
+
+    glUniform2ui(viewportSize, WIDTH, HEIGHT);
+    glUniform1ui(modelSize, block->size());
 
     SDL_Event event;
 
     bool running = true;
     for (unsigned int tick = 0; running; tick++) {
         // XXX: this is a dev tool. Remove later
-        if (!(tick % 30))
+        if (!(tick % 18))
         if (
-            compile_shader(fragmentShader, "svo.frag")
+            compile_shader(fragmentShader, "../src/render/shaders/svo.frag")
         ) {
             glLinkProgram(shaderProgram);
+            viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
+            time = glGetUniformLocation(shaderProgram, "time");
+            camPos = glGetUniformLocation(shaderProgram, "camPos");
+            modelSize = glGetUniformLocation(shaderProgram, "modelSize");
             glUniform2ui(viewportSize, WIDTH, HEIGHT);
+            glUniform1ui(modelSize, block->size());
+            std::cout << glGetError() << "\n";
         }
         // XXX end
 
@@ -166,7 +183,13 @@ int main(int argc, char **argv) {
             }
         }
 
-        glUniform1f(time, tick / 60.0f);
+        position_camera(tick / 18.0f);
+        glUniform1f(time, tick / 18.0f);
+        glUniform3f(
+            camPos,
+            cam_center.origin.x, cam_center.origin.y, cam_center.origin.z
+        );
+
         glDrawArrays(GL_TRIANGLES, 0, 3);
         SDL_GL_SwapWindow(window);
     }
