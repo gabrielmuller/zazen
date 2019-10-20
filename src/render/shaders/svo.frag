@@ -69,31 +69,32 @@ vec4 leaf(in uint block_i) {
     );
 }
 
-uint address_of(in Voxel voxel, uint octant) {
+uint addressOf(in Voxel voxel, uint octant) {
     /* Get address of a specific child inside a voxel. */
     uint mask = ~(0xffffffff << octant);
     return voxel.child + bitCount(mask & voxel.valid);
 }
     
 void main() {
+    /* Initialize ray. */
+    float fov = 0.6;
+    vec2 uv = (gl_FragCoord.xy * 2. / viewportSize)  - vec2(1.);
+    vec3 direction = vec3(uv * fov, -1.);
+    vec3 position = camPos;
+
     /* Set up stack. */
     Stack stack;
     stack.size = 1;
     stack.boxSize = 2.0;
     stack.data[0] = StackEntry(
         voxel(modelSize - 1),
-        0,
+        whichOctant(position, vec3(-1), stack.boxSize),
         vec3(-1)
     );
 
-    /* Initialize ray. */
-    float fov = 1.2;
-    vec2 uv = (gl_FragCoord.xy * fov / viewportSize) - vec2(0.5);
-    vec3 direction = vec3(uv.x * 1.2, -1.0, uv.y * 1.2);
-    vec3 position = camPos;
 
     /* Assume ray direction does not change (no refraction / reflection) */
-    vec3 mirror;
+    vec3 mirror = vec3(1.);
     uint mask = 0;
     if (direction.x >= 0) mirror.x = -1, mask ^= 4;
     if (direction.y >= 0) mirror.y = -1, mask ^= 2;
@@ -103,7 +104,7 @@ void main() {
     vec3 color = vec3(0.3, 0., 0.);
     uint i = 0;
 
-    for (; i < 100; i++) { // prevent infinite loop
+    while (true) {
         StackEntry entry = top(stack);
         uint oct = entry.octant;
         bool isValid = bool((entry.voxel.valid >> oct) & 1);
@@ -111,13 +112,13 @@ void main() {
 
         if (isLeaf) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            color = leaf(address_of(entry.voxel, oct)).xyz / (dist*dist+1.);
+            color = leaf(addressOf(entry.voxel, oct)).xyz / (dist*dist+1.);
             break;
         } 
 
         if (isValid) {
             /* Go a level deeper. */
-            stack.data[stack.size].voxel = voxel(address_of(entry.voxel, oct));
+            stack.data[stack.size].voxel = voxel(addressOf(entry.voxel, oct));
             stack.boxSize *= 0.5;
             stack.data[stack.size].corner = adjustCorner(
                 entry.corner,
@@ -133,9 +134,9 @@ void main() {
             // PUSH
             stack.size++;
 
-            color.y += (1 - color.y) / 60.;
+            //color.y += (1. - color.y) / 64.;
         } else {
-            /* Ray origin is in invalid voxel, cast ray until it hits next
+            /* Ray origin is in invalid voxel, cast ray until it hits the next
              * voxel. 
              */
             vec3 childCorner = top(stack).corner;
@@ -174,17 +175,10 @@ void main() {
             position += direction * amount;
             dist += amount;
 
-            if (hitFace == 0) {
-                color = vec3(uv, 1.0);
-                break;
-            }
-
-            uint counter = 0;
             while (
                 bool(hitFace & ~(top(stack).octant ^ mask)) && 
                 stack.size > 0
             ) {
-                counter++;
                 /* Hit face is at this voxel's boundary, search parent */
 
                 // POP
@@ -203,7 +197,7 @@ void main() {
              * Transfer to sibling voxel, changing on the axis of the face
              * that was hit.
              */
-            stack.data[stack.size].octant ^= hitFace;
+            stack.data[stack.size - 1].octant ^= hitFace;
         }
     }
     outColor = vec4(color, 1.0);

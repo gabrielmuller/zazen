@@ -32,8 +32,9 @@ std::string read_file(std::string filename) {
 
 void position_camera(const float time) {
     cam_center.origin = Vector(sin(time)*0.9,
-                               sin(time/3.21) * 0.9 + 1.1,
-                               cos(time/1.12)*0.9);
+                               cos(time/1.12)*0.9,
+                               sin(time/3.21) * 0.9 + 1.1
+                               );
 }
 
 bool compile_shader(GLuint shader, std::string filename) {
@@ -87,7 +88,8 @@ int main(int argc, char **argv) {
 
     SDL_Window* window = SDL_CreateWindow(
             "zazen",
-            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+            //SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+            1200, 100,
             WIDTH, HEIGHT,
             SDL_WINDOW_OPENGL
     );
