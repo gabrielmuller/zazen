@@ -25,6 +25,7 @@ struct StackEntry {
     vec3 corner;
 };
 
+/*
 struct Stack {
     StackEntry data[20];
     uint size;
@@ -32,8 +33,9 @@ struct Stack {
 };
 
 StackEntry top(in Stack stack) {
-    return stack.data[stack.size - 1];
+    return stack_data[stack_size - 1];
 }
+*/
 
 uint whichOctant(in vec3 pos, in vec3 corner, in float size) {
     /* Which of the eight octants does pos reside in the box (corner, size)? */
@@ -82,13 +84,13 @@ void main() {
     vec3 direction = vec3(uv * fov, -1.);
     vec3 position = camPos;
 
-    /* Set up stack. */
-    Stack stack;
-    stack.size = 1;
-    stack.boxSize = 2.0;
-    stack.data[0] = StackEntry(
+    /* Set up stack_ */
+    uint stack_size = 1;
+    float stack_boxSize = 2.0;
+    StackEntry stack_data[20];
+    stack_data[0] = StackEntry(
         voxel(modelSize - 1),
-        whichOctant(position, vec3(-1), stack.boxSize),
+        whichOctant(position, vec3(-1), stack_boxSize),
         vec3(-1)
     );
 
@@ -105,7 +107,7 @@ void main() {
     uint i = 0;
 
     while (true) {
-        StackEntry entry = top(stack);
+        StackEntry entry = stack_data[stack_size -1];
         uint oct = entry.octant;
         bool isValid = bool((entry.voxel.valid >> oct) & 1);
         bool isLeaf = bool((entry.voxel.leaf >> oct) & 1);
@@ -118,29 +120,29 @@ void main() {
 
         if (isValid) {
             /* Go a level deeper. */
-            stack.data[stack.size].voxel = voxel(addressOf(entry.voxel, oct));
-            stack.boxSize *= 0.5;
-            stack.data[stack.size].corner = adjustCorner(
+            stack_data[stack_size].voxel = voxel(addressOf(entry.voxel, oct));
+            stack_boxSize *= 0.5;
+            stack_data[stack_size].corner = adjustCorner(
                 entry.corner,
-                stack.boxSize,
+                stack_boxSize,
                 entry.octant
             );
-            stack.data[stack.size].octant = whichOctant(
+            stack_data[stack_size].octant = whichOctant(
                 position,
-                stack.data[stack.size].corner, 
-                stack.boxSize
+                stack_data[stack_size].corner, 
+                stack_boxSize
             );
 
             // PUSH
-            stack.size++;
+            stack_size++;
 
             //color.y += (1. - color.y) / 64.;
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits the next
              * voxel. 
              */
-            vec3 childCorner = top(stack).corner;
-            float childSize = stack.boxSize * 0.5;
+            vec3 childCorner = stack_data[stack_size -1].corner;
+            float childSize = stack_boxSize * 0.5;
             childCorner = adjustCorner(childCorner, childSize, oct);
 
             vec3 mirrorPos = position * mirror;
@@ -176,17 +178,17 @@ void main() {
             dist += amount;
 
             while (
-                bool(hitFace & ~(top(stack).octant ^ mask)) && 
-                stack.size > 0
+                bool(hitFace & ~(stack_data[stack_size-1].octant ^ mask)) && 
+                stack_size > 0
             ) {
                 /* Hit face is at this voxel's boundary, search parent */
 
                 // POP
-                stack.size--;
-                stack.boxSize *= 2.;
+                stack_size--;
+                stack_boxSize *= 2.;
             }
 
-            if (stack.size == 0) {
+            if (stack_size == 0) {
                 /* Ray is outside root octree. */
 
                 // EMPTY STACK AFTER LOOP - BLUE
@@ -197,7 +199,7 @@ void main() {
              * Transfer to sibling voxel, changing on the axis of the face
              * that was hit.
              */
-            stack.data[stack.size - 1].octant ^= hitFace;
+            stack_data[stack_size - 1].octant ^= hitFace;
         }
     }
     outColor = vec4(color, 1.0);
