@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
     bool running = true;
     for (unsigned int tick = 0; running; tick++) {
         // XXX: this is a dev tool. Remove later
-        if (!(tick % 18))
+        if (!(tick % 60))
         if (
             compile_shader(fragmentShader, "../src/render/shaders/svo.frag")
         ) {
@@ -185,8 +185,8 @@ int main(int argc, char **argv) {
             }
         }
 
-        position_camera(tick / 18.0f);
-        glUniform1f(time, tick / 18.0f);
+        position_camera(tick / 60.0f);
+        glUniform1f(time, tick / 60.0f);
         glUniform3f(
             camPos,
             cam_center.origin.x, cam_center.origin.y, cam_center.origin.z

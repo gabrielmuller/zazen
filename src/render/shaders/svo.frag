@@ -84,7 +84,7 @@ void main() {
     if (direction.z >= 0) mirror.z = -1, mask ^= 1;
 
     float dist = 0.;
-    vec3 color = vec3(0.3, 0., 0.);
+    vec3 color = vec3(0.);
 
     while (true) {
         uint i = stack_size - 1;
@@ -116,7 +116,7 @@ void main() {
             // PUSH
             stack_size++;
 
-            //color.y += (1. - color.y) / 64.;
+            color.z += (1. - color.z) / 20.;
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits the next
              * voxel. 
@@ -170,9 +170,7 @@ void main() {
 
             if (stack_size == 0) {
                 /* Ray is outside root octree. */
-
-                // EMPTY STACK AFTER LOOP - BLUE
-                color.z = 0.8;
+                color.xy += vec2(0.8) + position.xy * 0.2;
                 break;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
