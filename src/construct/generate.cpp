@@ -9,7 +9,7 @@ struct GenerateModel : Model {
             : Model(name, width, height, depth) {}
 
     Leaf at(int3 pos) const override {
-        const unsigned int mod = width / 16;
+        const unsigned int mod = width / 8;
         const float xx = (pos.x%mod)*2 / (float) mod - 1;
         const float yy = (pos.y%mod)*2 / (float) mod - 1;
         const float zz = (pos.z%mod)*2 / (float) mod - 1;

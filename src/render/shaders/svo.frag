@@ -26,9 +26,9 @@ uint whichOctant(in vec3 pos, in vec3 corner, in float size) {
 
 vec3 adjustCorner(in vec3 corner, float size, uint octant) {
     vec3 adjusted = corner;
-    if (octant & 4) adjusted.x += size;
-    if (octant & 2) adjusted.y += size;
-    if (octant & 1) adjusted.z += size;
+    if (bool(octant & 4)) adjusted.x += size;
+    if (bool(octant & 2)) adjusted.y += size;
+    if (bool(octant & 1)) adjusted.z += size;
     return adjusted;
 }
 
@@ -42,10 +42,10 @@ void voxel(in uint block_i, out uint child, out uint leaf, out uint valid) {
 vec4 getLeaf(in uint block_i) {
     uint rgba = data[block_i * 2];
     return vec4(
-        (rgba & 0xff) / 256.,
-        ((rgba >> 8) & 0xff) / 256.,
-        ((rgba >> 16) & 0xff) / 256.,
-        ((rgba >> 24) & 0xff) / 256.
+        float(rgba & 0xff) / 256.,
+        float((rgba >> 8) & 0xff) / 256.,
+        float((rgba >> 16) & 0xff) / 256.,
+        float((rgba >> 24) & 0xff) / 256.
     );
 }
 
@@ -58,7 +58,7 @@ uint addressOf(in uint child, in uint valid, in uint octant) {
 void main() {
     /* Initialize ray. */
     float fov = 0.6;
-    vec2 uv = (gl_FragCoord.xy * 2. / viewportSize)  - vec2(1.);
+    vec2 uv = (gl_FragCoord.xy * 2. / viewportSize.y)  - vec2(1.);
     vec3 direction = vec3(uv * fov, -1.);
     vec3 position = camPos;
 

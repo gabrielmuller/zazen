@@ -2,6 +2,7 @@
 #define GLEW_STATIC
 
 #include <fstream>
+#include <ctime>
 #include <GL/glew.h>
 
 #include <SDL2/SDL.h>
@@ -69,13 +70,6 @@ int main(int argc, char **argv) {
     }
 
     block = from_file(argv[arg]);
-    Voxel root = block->back<Voxel>();
-    uint64_t root_i = *((uint64_t *) &root);
-    std::cout << "cccc/v/l " << std::hex << root.child << "/" <<
-    std::hex << (int) root.valid << "/" << 
-    std::hex << (int) root.leaf << "\n";
-    std::cout << "64 " << std::hex << root_i << "\n";
-    std::cout << "size " << block->size();
 
     SDL_Init(SDL_INIT_VIDEO);
     atexit(SDL_Quit);
@@ -162,7 +156,15 @@ int main(int argc, char **argv) {
     SDL_Event event;
 
     bool running = true;
+    float prev_time = clock() / CLOCKS_PER_SEC;
+
     for (unsigned int tick = 0; running; tick++) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                running = false;
+            }
+        }
+
         // XXX: this is a dev tool. Remove later
         if (!(tick % 60))
         if (
@@ -175,18 +177,18 @@ int main(int argc, char **argv) {
             modelSize = glGetUniformLocation(shaderProgram, "modelSize");
             glUniform2ui(viewportSize, WIDTH, HEIGHT);
             glUniform1ui(modelSize, block->size());
-            std::cout << glGetError() << "\n";
         }
         // XXX end
 
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                running = false;
-            }
-        }
+        const float curr_time = (float) clock() / CLOCKS_PER_SEC;
+        const float delta_time = curr_time - prev_time;
+        prev_time = curr_time;
 
-        position_camera(tick / 60.0f);
-        glUniform1f(time, tick / 60.0f);
+        if (!(tick % 50))
+            std::cout << "\r" << int(1.0 / delta_time) << " FPS";
+
+        position_camera(curr_time);
+        glUniform1f(time, curr_time);
         glUniform3f(
             camPos,
             cam_center.origin.x, cam_center.origin.y, cam_center.origin.z
