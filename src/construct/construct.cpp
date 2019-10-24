@@ -186,6 +186,13 @@ class Builder {
             }
 
             unsigned int insert_i = std::min(power, non_empty_i);
+            if (insert_i >= queue_count) {
+                std::cout 
+                << "\n\tERROR: completely homogenous model!" 
+                << "\n\tConstruction aborted.\n\n\a";
+                writer << ileaf.leaf;
+                throw "Homogenous model";
+            }
 
             Node to_push = ileaf.leaf.valid() ? Node(ileaf.leaf) : Node();
             push_at(to_push, insert_i);

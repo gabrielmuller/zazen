@@ -11,6 +11,7 @@
 #include "render.cpp"
 
 unsigned char pixels[WIDTH][HEIGHT][4];
+const unsigned int UPSCALE = 4;
 
 std::string read_file(std::string filename) {
     std::string content;
@@ -34,7 +35,7 @@ std::string read_file(std::string filename) {
 void position_camera(const float time) {
     cam_center.origin = Vector(sin(time)*0.9,
                                cos(time/1.12)*0.9,
-                               sin(time/3.21) * 0.9 + 1.1
+                               sin(time/3.21) * 0.9 - 2.1
                                );
 }
 
@@ -59,6 +60,18 @@ bool compile_shader(GLuint shader, std::string filename) {
         return false;
     }
     return true;
+}
+
+void GLAPIENTRY glDebugOutput(
+        GLenum source,
+        GLenum type,
+        GLuint id,
+        GLenum severity,
+        GLsizei length,
+        const GLchar* message,
+        const void* userParam
+        ) {
+    //std::cout << message << std::endl;
 }
 
 int main(int argc, char **argv) {
@@ -93,6 +106,9 @@ int main(int argc, char **argv) {
     glewExperimental = GL_TRUE;
     glewInit();
 
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(glDebugOutput, 0);
+
     float vertices[] = {
         -1.0f, -1.0f, // Vertex 1 (X, Y)
          3.0f, -1.0f, // Vertex 2 (X, Y)
@@ -123,35 +139,98 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    // Create intermediate frame buffer objects
+    GLuint fbo;
+    glGenFramebuffers(1, &fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+
+    // Attach texture to FBO
+    GLuint colorTexture;
+    glGenTextures(1, &colorTexture);
+    glBindTexture(GL_TEXTURE_2D, colorTexture);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGB,
+        WIDTH  / UPSCALE,
+        HEIGHT / UPSCALE,
+        0,
+        GL_RGB,
+        GL_UNSIGNED_BYTE,
+        0
+    );
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER,
+        GL_COLOR_ATTACHMENT0,
+        GL_TEXTURE_2D,
+        colorTexture,
+        0
+    );  
+
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        std::cout << "FBO incomplete!";
+        return 1;
+    }
+
+
+
+
     // Allocate shaders and assemble program
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
     GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    GLuint lightShader = glCreateShader(GL_FRAGMENT_SHADER);
 
     GLuint shaderProgram = glCreateProgram();
+    GLuint lightProgram = glCreateProgram();
+
     glAttachShader(shaderProgram, vertexShader);
     glAttachShader(shaderProgram, fragmentShader);
 
+    glAttachShader(lightProgram, vertexShader);
+    glAttachShader(lightProgram, lightShader);
+
     if (
         compile_shader(vertexShader, "svo.vert") &&
-        compile_shader(fragmentShader,  "../src/render/shaders/svo.frag")
+        compile_shader(fragmentShader,  "../src/render/shaders/svo.frag") &&
+        compile_shader(lightShader, "../src/render/shaders/light.frag")
     ) {
         glLinkProgram(shaderProgram);
+        glLinkProgram(lightProgram);
     }
 
-    glUseProgram(shaderProgram);
 
     // Specify position vertex attribute
-    GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
-    glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(posAttrib);
 
-    GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
+    glUseProgram(shaderProgram);
+    {
+        GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+        glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glEnableVertexAttribArray(posAttrib);
+    }
+
+    {
+        GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
+        GLint modelSize = glGetUniformLocation(shaderProgram, "modelSize");
+        glUniform2ui(viewportSize, WIDTH / UPSCALE, HEIGHT / UPSCALE);
+        glUniform1ui(modelSize, block->size());
+    }
+
     GLint time = glGetUniformLocation(shaderProgram, "time");
     GLint camPos = glGetUniformLocation(shaderProgram, "camPos");
-    GLint modelSize = glGetUniformLocation(shaderProgram, "modelSize");
 
-    glUniform2ui(viewportSize, WIDTH, HEIGHT);
-    glUniform1ui(modelSize, block->size());
+    glUseProgram(lightProgram);
+    {
+        GLint viewportSize = glGetUniformLocation(lightProgram, "viewportSize");
+        GLint upscale = glGetUniformLocation(lightProgram, "upscale");
+        glUniform2ui(viewportSize, WIDTH, HEIGHT);
+        glUniform1ui(upscale, UPSCALE);
+    }
 
     SDL_Event event;
 
@@ -165,37 +244,28 @@ int main(int argc, char **argv) {
             }
         }
 
-        // XXX: this is a dev tool. Remove later
-        if (!(tick % 60))
-        if (
-            compile_shader(fragmentShader, "../src/render/shaders/svo.frag")
-        ) {
-            glLinkProgram(shaderProgram);
-            viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
-            time = glGetUniformLocation(shaderProgram, "time");
-            camPos = glGetUniformLocation(shaderProgram, "camPos");
-            modelSize = glGetUniformLocation(shaderProgram, "modelSize");
-            glUniform2ui(viewportSize, WIDTH, HEIGHT);
-            glUniform1ui(modelSize, block->size());
-        }
-        // XXX end
+        // First pass
+        glUseProgram(shaderProgram);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-        const float curr_time = (float) clock() / CLOCKS_PER_SEC;
-        const float delta_time = curr_time - prev_time;
-        prev_time = curr_time;
-
-        if (!(tick % 50))
-            std::cout << "\r" << int(1.0 / delta_time) << " FPS";
-
-        position_camera(curr_time);
-        glUniform1f(time, curr_time);
+        position_camera(tick / 60.0);
+        glUniform1f(time, 0);
         glUniform3f(
             camPos,
             cam_center.origin.x, cam_center.origin.y, cam_center.origin.z
         );
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
+
+
+        // Second pass
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glUseProgram(lightProgram);
+        glBindTexture(GL_TEXTURE_2D, colorTexture);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
         SDL_GL_SwapWindow(window);
+
     }
 
     // Clean up and exit

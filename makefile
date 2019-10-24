@@ -17,7 +17,6 @@ construct:
 
 debug:
 	g++ -Wall -Wextra -g -O3 src/construct/main.cpp -o build/construct
-	g++ -Wall -Wextra -g -O0 -Ofast -DHEADLESS src/render/main.cpp -o build/render
 
 prof:
 	g++ -g -fprofile-arcs -O3 -Ofast src/render/main.cpp -lSDL2 -o build/render

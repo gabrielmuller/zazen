@@ -48,6 +48,7 @@ vec4 leafColor(in uint block_i) {
         float((rgba >> 16) & 0xff) / 256.,
         float((rgba >> 24) & 0xff) / 256.
     );
+    return vec4(1.0, 0., 0., 1.0);
 }
 
 uint addressOf(in uint child, in uint valid, in uint octant) {
@@ -60,7 +61,7 @@ void main() {
     /* Initialize ray. */
     float fov = 0.6;
     vec2 uv = (gl_FragCoord.xy * 2. / viewportSize.y)  - vec2(1.);
-    vec3 direction = vec3(uv * fov, -1.);
+    vec3 direction = vec3(uv * fov, 1.);
     vec3 position = camPos;
 
     /* Set up stack. */
@@ -94,21 +95,25 @@ void main() {
     float dist = 0.;
     vec3 color = vec3(0.);
 
+    vec3 debug = vec3(0.);
     while (true) {
         uint oct = octant[size-1];
         if (bool((leaf[size-1] >> oct) & 1)) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            color = leafColor(
-                addressOf(
-                    child[size-1],
-                    valid[size-1],
-                    oct
-                )
-            ).xyz / (dist*dist + 1.);
-            break;
+            if (all(greaterThan(position, corner[0]))) {
+                color = leafColor(
+                    addressOf(
+                        child[size-1],
+                        valid[size-1],
+                        oct
+                    )
+                ).xyz / (dist*dist + 1.);
+                break;
+            }
         } 
 
         if (bool((valid[size-1] >> oct) & 1)) {
+            debug.y += (1. - debug.y) / 64.;
             /* Go a level deeper. */
 
             // PUSH
@@ -135,6 +140,7 @@ void main() {
 
             //color.z += (1. - color.z) / 20.;
         } else {
+            debug.z += (1. - debug.z) / 64.;
             /* Ray origin is in invalid voxel, cast ray until it hits the next
              * voxel. 
              */
@@ -150,6 +156,7 @@ void main() {
             uint hitFace = 0;
 
             /* amount will be the minimum positive component of t. */
+
             if (t.x > 0.) {
                 amount = t.x;
                 hitFace = 4;

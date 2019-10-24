@@ -14,8 +14,7 @@ struct GenerateModel : Model {
         const float yy = (pos.y%mod)*2 / (float) mod - 1;
         const float zz = (pos.z%mod)*2 / (float) mod - 1;
         const float radius = (sin((pos.x/mod + pos.y/mod + pos.z/mod)/5)+1)*0.3;
-
-        if (xx*xx + yy*yy + zz*zz > radius) {
+        if ((xx*xx + yy*yy + zz*zz > radius) || (std::sin((pos.x*16 + pos.y*20 + pos.z * 30) /(float)width) < 0)) {
             return Leaf(0);
         }
 
