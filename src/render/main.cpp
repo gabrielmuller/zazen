@@ -11,7 +11,7 @@
 #include "render.cpp"
 
 unsigned char pixels[WIDTH][HEIGHT][4];
-const unsigned int UPSCALE = 4;
+const unsigned int UPSCALE = 2;
 
 std::string read_file(std::string filename) {
     std::string content;
@@ -72,6 +72,36 @@ void GLAPIENTRY glDebugOutput(
         const void* userParam
         ) {
     //std::cout << message << std::endl;
+}
+
+void setup_tex(GLuint& texture, GLuint attachment, GLenum interp, GLenum format, GLenum internal) {
+    glGenTextures(1, &texture);
+    
+    glActiveTexture(GL_TEXTURE0 + attachment);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        internal,
+        WIDTH  / UPSCALE,
+        HEIGHT / UPSCALE,
+        0,
+        GL_RGBA,
+        format,
+        0
+    );
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, interp);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, interp);
+
+    glFramebufferTexture2D(
+        GL_FRAMEBUFFER,
+        GL_COLOR_ATTACHMENT0 + attachment,
+        GL_TEXTURE_2D,
+        texture,
+        0
+    );  
 }
 
 int main(int argc, char **argv) {
@@ -139,47 +169,26 @@ int main(int argc, char **argv) {
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-    // Create intermediate frame buffer objects
+    // Create intermediate frame buffer object
     GLuint fbo;
     glGenFramebuffers(1, &fbo);
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+    GLenum drawBuffers[] = {GL_COLOR_ATTACHMENT0, GL_NONE, GL_NONE, GL_COLOR_ATTACHMENT3};
+    glDrawBuffers(4, drawBuffers);
 
-    // Attach texture to FBO
+    // Attach textures to FBO
     GLuint colorTexture;
-    glGenTextures(1, &colorTexture);
-    glBindTexture(GL_TEXTURE_2D, colorTexture);
+    GLuint positionTexture;
 
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGB,
-        WIDTH  / UPSCALE,
-        HEIGHT / UPSCALE,
-        0,
-        GL_RGB,
-        GL_UNSIGNED_BYTE,
-        0
-    );
+    setup_tex(colorTexture, 0, GL_NEAREST, GL_UNSIGNED_BYTE, GL_RGBA);
+    setup_tex(positionTexture, 3, GL_NEAREST, GL_FLOAT, GL_RGBA32F);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-    glFramebufferTexture2D(
-        GL_FRAMEBUFFER,
-        GL_COLOR_ATTACHMENT0,
-        GL_TEXTURE_2D,
-        colorTexture,
-        0
-    );  
 
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         std::cout << "FBO incomplete!";
         return 1;
     }
-
-
-
 
     // Allocate shaders and assemble program
     GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -200,6 +209,10 @@ int main(int argc, char **argv) {
         compile_shader(fragmentShader,  "../src/render/shaders/svo.frag") &&
         compile_shader(lightShader, "../src/render/shaders/light.frag")
     ) {
+        /*
+        glBindFragDataLocation(shaderProgram, 0, "outColor");
+        glBindFragDataLocation(shaderProgram, 1, "outPosition");
+        */
         glLinkProgram(shaderProgram);
         glLinkProgram(lightProgram);
     }
@@ -219,6 +232,7 @@ int main(int argc, char **argv) {
         GLint modelSize = glGetUniformLocation(shaderProgram, "modelSize");
         glUniform2ui(viewportSize, WIDTH / UPSCALE, HEIGHT / UPSCALE);
         glUniform1ui(modelSize, block->size());
+
     }
 
     GLint time = glGetUniformLocation(shaderProgram, "time");
@@ -228,9 +242,23 @@ int main(int argc, char **argv) {
     {
         GLint viewportSize = glGetUniformLocation(lightProgram, "viewportSize");
         GLint upscale = glGetUniformLocation(lightProgram, "upscale");
+        GLint colorLoc = glGetUniformLocation(lightProgram, "colorTexture");
+        GLint positionLoc = glGetUniformLocation(lightProgram, "positionTexture");
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, colorTexture);
+        glUniform1i(colorLoc, 0);
+
+        glActiveTexture(GL_TEXTURE0 + 3);
+        glBindTexture(GL_TEXTURE_2D, positionTexture);
+        glUniform1i(positionLoc, 3);
+
         glUniform2ui(viewportSize, WIDTH, HEIGHT);
         glUniform1ui(upscale, UPSCALE);
+
     }
+
+    glDisable(GL_DEPTH_TEST);
 
     SDL_Event event;
 
@@ -248,6 +276,7 @@ int main(int argc, char **argv) {
         glUseProgram(shaderProgram);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
+
         position_camera(tick / 60.0);
         glUniform1f(time, 0);
         glUniform3f(
@@ -260,8 +289,8 @@ int main(int argc, char **argv) {
 
         // Second pass
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         glUseProgram(lightProgram);
-        glBindTexture(GL_TEXTURE_2D, colorTexture);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         SDL_GL_SwapWindow(window);

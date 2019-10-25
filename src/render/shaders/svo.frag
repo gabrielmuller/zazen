@@ -6,7 +6,8 @@ uniform float time;
 uniform uint modelSize;
 in vec4 gl_FragCoord;
 
-out vec4 outColor;
+layout (location = 0) out vec4 outColor;
+layout (location = 3) out vec4 outPosition;
 
 layout (binding = 2, std430) buffer svo {
     uint[] data;
@@ -93,7 +94,6 @@ void main() {
     vec3 mirror = vec3(1.) - maskVec * 2.;
 
     float dist = 0.;
-    vec3 color = vec3(0.);
 
     vec3 debug = vec3(0.);
     while (true) {
@@ -101,14 +101,15 @@ void main() {
         if (bool((leaf[size-1] >> oct) & 1)) {
             /* Ray origin is inside leaf voxel, render leaf. */
             if (all(greaterThan(position, corner[0]))) {
-                color = leafColor(
+                outColor = leafColor(
                     addressOf(
                         child[size-1],
                         valid[size-1],
                         oct
                     )
-                ).xyz / (dist*dist + 1.);
-                break;
+                );
+                outPosition = vec4(position, dist);
+                return;
             }
         } 
 
@@ -138,7 +139,6 @@ void main() {
 
             size++;
 
-            //color.z += (1. - color.z) / 20.;
         } else {
             debug.z += (1. - debug.z) / 64.;
             /* Ray origin is in invalid voxel, cast ray until it hits the next
@@ -186,9 +186,12 @@ void main() {
             }
 
             if (size == 0) {
-                /* Ray is outside root octree. Render a pretty background. */
-                color = vec3(0.9) + position * 0.1;
-                break;
+                /* Ray is outside root octree. 
+                 * Color will be calculated next pass. 
+                 */
+                outColor = vec4(direction, 0.0);
+                outPosition = vec4(position, 0.0);
+                return;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
              * Transfer to sibling voxel, changing on the axis of the face
@@ -197,5 +200,4 @@ void main() {
             octant[size-1] ^= hitFace;
         }
     }
-    outColor = vec4(color, 1.0);
 }
