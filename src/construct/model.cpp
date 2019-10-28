@@ -12,7 +12,7 @@ struct Model {
     Model(std::string name, 
             unsigned int width, unsigned int height, unsigned int depth) 
             : width(width), height(height), depth(depth), name(name) {
-        std::cout << "Reading model \"" << name << "\" ...\n";
+        std::cout << "Constructing model \"" << name << "\"...\n";
     }
     virtual ~Model() {}
 

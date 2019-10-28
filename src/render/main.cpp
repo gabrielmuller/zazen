@@ -11,7 +11,7 @@
 #include "render.cpp"
 
 unsigned char pixels[WIDTH][HEIGHT][4];
-const unsigned int UPSCALE = 2;
+const unsigned int UPSCALE = 4;
 
 std::string read_file(std::string filename) {
     std::string content;

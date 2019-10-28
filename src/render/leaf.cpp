@@ -6,7 +6,6 @@ struct Leaf {
     /* Leaf voxel. */
 
     uint8_t rgba[4];
-    uint16_t n1, n2; // TODO remove this
 
     Leaf() = default;
 

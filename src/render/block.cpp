@@ -10,7 +10,7 @@ struct Block {
     size_t front_index;
 
   public:
-    static const std::size_t ELEMENT_SIZE = 8;
+    static const std::size_t ELEMENT_SIZE = 4;
     static const std::string EXTENSION;
 
     Block(size_t element_count, bool full = false) :
@@ -48,19 +48,12 @@ struct Block {
 
     template <typename T>
     T& at(const int32_t index) const {
-        return ((T*) _data)[index];
+        return *((T*) (_data + index * ELEMENT_SIZE));
     }
 
     template <typename T>
     inline T& back() const {
         return at<T>(size() - 1);
-    }
-
-    char* slot() {
-        char* front_slot = front;
-        front += ELEMENT_SIZE;
-        front_index++;
-        return front_slot;
     }
 
     inline size_t size() const {

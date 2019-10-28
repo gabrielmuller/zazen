@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include "../render/block.cpp"
 
 class BlockWriter {
     std::string filename;
@@ -16,8 +17,8 @@ class BlockWriter {
 
     ~BlockWriter() {
         std::cout << "File '" << filename << "' saved to disk.\n"
-        << element_count << " elements.\n"
-        << byte_count << " bytes.\n";
+        << byte_count << " bytes.\n"
+        << element_count << " elements.\n";
     }
 
     unsigned int pos() const {
@@ -28,6 +29,6 @@ class BlockWriter {
     void operator<<(const T& node) {
         stream.write((char*) &node, sizeof(T));
         byte_count += sizeof(T);
-        element_count++;
+        element_count += sizeof(T) / Block::ELEMENT_SIZE;
     }
 };

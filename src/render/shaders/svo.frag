@@ -35,14 +35,13 @@ vec3 octVec(in uint octant) {
 }
 
 void voxel(in uint block_i, out uint child, out uint leaf, out uint valid) {
-    uint i = block_i * 2;
-    child = data[i++];
-    leaf = data[i] >> 8;
-    valid = data[i] & 0xff;
+    child = data[block_i];
+    leaf = data[block_i + 1] >> 8;
+    valid = data[block_i + 1] & 0xff;
 }
 
 vec4 leafColor(in uint block_i) {
-    uint rgba = data[block_i * 2];
+    uint rgba = data[block_i];
     return vec4(
         float(rgba & 0xff) / 256.,
         float((rgba >> 8) & 0xff) / 256.,
@@ -52,10 +51,10 @@ vec4 leafColor(in uint block_i) {
     return vec4(1.0, 0., 0., 1.0);
 }
 
-uint addressOf(in uint child, in uint valid, in uint octant) {
+uint addressOf(in uint child, in uint leaf, in uint valid, in uint octant) {
     /* Get address of a specific child inside a voxel. */
     uint mask = ~(0xffffffff << octant);
-    return child + bitCount(mask & valid);
+    return child + bitCount(mask & valid) * 2 - bitCount(mask & leaf);
 }
     
 void main() {
@@ -77,7 +76,7 @@ void main() {
     uint octant[10];
 
     // set root stack entry
-    voxel(modelSize - 1, child[0], leaf[0], valid[0]);
+    voxel(modelSize - 2, child[0], leaf[0], valid[0]);
     corner[0] = vec3(-1);
     octant[0] = whichOctant(position, vec3(-1), boxSize);
 
@@ -104,11 +103,12 @@ void main() {
                 outColor = leafColor(
                     addressOf(
                         child[size-1],
+                        leaf [size-1],
                         valid[size-1],
                         oct
                     )
                 );
-                outPosition = vec4(position, dist);
+                outPosition = vec4(position, 1.0);
                 return;
             }
         } 
@@ -121,6 +121,7 @@ void main() {
             voxel(
                 addressOf(
                     child[size-1],
+                    leaf [size-1],
                     valid[size-1],
                     oct
                 ),
@@ -189,8 +190,8 @@ void main() {
                 /* Ray is outside root octree. 
                  * Color will be calculated next pass. 
                  */
-                outColor = vec4(direction, 0.0);
-                outPosition = vec4(position, 0.0);
+                outColor = vec4(0.0);
+                outPosition = vec4(0.0);
                 return;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.
