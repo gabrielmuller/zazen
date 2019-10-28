@@ -13,7 +13,7 @@ StanfordModel* brain() {
 }
 
 GenerateModel* generated() {
-    const unsigned int size = 2048;
+    const unsigned int size = 512;
     return new GenerateModel("generated", size, size, size);
 }
 

@@ -28,3 +28,13 @@ run_construct:
 
 run_render:
 	cd build; ./render generated.zaz
+
+bench:
+	cd build; ./render generated.zaz 1280 720 1
+	cd build; ./render generated.zaz 640 480 1
+	cd build; ./render generated.zaz 1280 720 2
+	cd build; ./render generated.zaz 640 480 2
+	cd build; ./render generated.zaz 1280 720 4
+	cd build; ./render generated.zaz 640 480 4
+	cd build; ./render generated.zaz 1280 720 8
+	cd build; ./render generated.zaz 640 480 8

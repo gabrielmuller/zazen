@@ -3,15 +3,17 @@
 
 #include <fstream>
 #include <ctime>
+#include <iostream>
 #include <GL/glew.h>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 
-#include "render.cpp"
+#include "ray.cpp"
+#include "block.cpp"
 
-unsigned char pixels[WIDTH][HEIGHT][4];
-const unsigned int UPSCALE = 4;
+unsigned int width, height, upscale;
+Ray cam_center;
 
 std::string read_file(std::string filename) {
     std::string content;
@@ -84,8 +86,8 @@ void setup_tex(GLuint& texture, GLuint attachment, GLenum interp, GLenum format,
         GL_TEXTURE_2D,
         0,
         internal,
-        WIDTH  / UPSCALE,
-        HEIGHT / UPSCALE,
+        width  / upscale,
+        height / upscale,
         0,
         GL_RGBA,
         format,
@@ -105,14 +107,23 @@ void setup_tex(GLuint& texture, GLuint attachment, GLenum interp, GLenum format,
 }
 
 int main(int argc, char **argv) {
-    const int arg = 1;
+    int arg = 1;
 
     if (arg >= argc) {
         std::cout << "Please specify an input file.\n";
         return 1;
     }
 
-    block = from_file(argv[arg]);
+    Block* block = from_file(argv[arg++]);
+
+    if (arg >= argc) width = 1280;
+    else width = atoi(argv[arg++]);
+
+    if (arg >= argc) height = 720;
+    else height = atoi(argv[arg++]);
+
+    if (arg >= argc) upscale = 4;
+    else upscale = atoi(argv[arg++]);
 
     SDL_Init(SDL_INIT_VIDEO);
     atexit(SDL_Quit);
@@ -125,9 +136,8 @@ int main(int argc, char **argv) {
 
     SDL_Window* window = SDL_CreateWindow(
             "zazen",
-            //SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            1200, 100,
-            WIDTH, HEIGHT,
+            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+            width, height,
             SDL_WINDOW_OPENGL
     );
 
@@ -230,7 +240,7 @@ int main(int argc, char **argv) {
     {
         GLint viewportSize = glGetUniformLocation(shaderProgram, "viewportSize");
         GLint modelSize = glGetUniformLocation(shaderProgram, "modelSize");
-        glUniform2ui(viewportSize, WIDTH / UPSCALE, HEIGHT / UPSCALE);
+        glUniform2ui(viewportSize, width / upscale, height / upscale);
         glUniform1ui(modelSize, block->size());
 
     }
@@ -241,7 +251,7 @@ int main(int argc, char **argv) {
     glUseProgram(lightProgram);
     {
         GLint viewportSize = glGetUniformLocation(lightProgram, "viewportSize");
-        GLint upscale = glGetUniformLocation(lightProgram, "upscale");
+        GLint upscaleLoc = glGetUniformLocation(lightProgram, "upscale");
         GLint colorLoc = glGetUniformLocation(lightProgram, "colorTexture");
         GLint positionLoc = glGetUniformLocation(lightProgram, "positionTexture");
 
@@ -253,8 +263,8 @@ int main(int argc, char **argv) {
         glBindTexture(GL_TEXTURE_2D, positionTexture);
         glUniform1i(positionLoc, 3);
 
-        glUniform2ui(viewportSize, WIDTH, HEIGHT);
-        glUniform1ui(upscale, UPSCALE);
+        glUniform2ui(viewportSize, width, height);
+        glUniform1ui(upscaleLoc, upscale);
 
     }
 
@@ -263,7 +273,7 @@ int main(int argc, char **argv) {
     SDL_Event event;
 
     bool running = true;
-    float prev_time = clock() / CLOCKS_PER_SEC;
+    unsigned long long timer = clock();
 
     for (unsigned int tick = 0; running; tick++) {
         while (SDL_PollEvent(&event)) {
@@ -294,6 +304,14 @@ int main(int argc, char **argv) {
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         SDL_GL_SwapWindow(window);
+
+        if (tick == 500) {
+            timer = clock() - timer;
+            std::cout << timer << "\n";
+            std::cout << width << "X" << height << " " << upscale << "\n"
+            << "Average FPS of " << 500.0 / (float(timer) / CLOCKS_PER_SEC) << "\n\n";
+            break;
+        }
 
     }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cmath>
 
 struct Vector {
     /* Simple container struct for a 3D vector. */

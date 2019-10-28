@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include "vector.cpp"
 const float e = std::numeric_limits<float>::epsilon();
 struct Ray {
