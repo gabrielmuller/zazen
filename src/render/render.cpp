@@ -8,8 +8,8 @@
 #include "stack.cpp"
 #include "block.cpp"
 
-const unsigned int WIDTH = 300;
-const unsigned int HEIGHT = 300;
+const unsigned int WIDTH = 640;
+const unsigned int HEIGHT = 480;
 
 const float fov = 1.2; // 1 -> 90 degrees
 const Vector scale(1, 1, 1);
@@ -18,7 +18,7 @@ Ray cam_center;
 Block* block = nullptr;
 
 void render(unsigned char* pixel, int i, int j) {
-    const float screen_x = (i * fov) / (float) WIDTH - 0.5;
+    const float screen_x = (i * fov) / (float) HEIGHT - 0.5;
     const float screen_y = (j * fov) / (float) HEIGHT - 0.5;
 
     // start traverse on root voxel
