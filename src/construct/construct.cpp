@@ -167,6 +167,7 @@ class Builder {
     }
 
     void add_leaf(const IndexedLeaf& ileaf) {
+
         unsigned int leaf_count = ileaf.index - stream_index;
         while (leaf_count > 0) {
             /* Push invalid nodes so the index catches up with the stream. */

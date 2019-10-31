@@ -48,7 +48,6 @@ vec4 leafColor(in uint block_i) {
         float((rgba >> 16) & 0xff) / 256.,
         float((rgba >> 24) & 0xff) / 256.
     );
-    return vec4(1.0, 0., 0., 1.0);
 }
 
 uint addressOf(in uint child, in uint leaf, in uint valid, in uint octant) {
@@ -61,7 +60,8 @@ void main() {
     /* Initialize ray. */
     float fov = 0.6;
     vec2 uv = (gl_FragCoord.xy * 2. / viewportSize.y)  - vec2(1.);
-    vec3 direction = vec3(uv * fov, 1.);
+    vec3 direction = normalize(vec3(uv * fov, 1.));
+    direction = direction.xzy;
     vec3 position = camPos;
 
     /* Set up stack. */
@@ -99,7 +99,7 @@ void main() {
         uint oct = octant[size-1];
         if (bool((leaf[size-1] >> oct) & 1)) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            if (all(greaterThan(position, corner[0]))) {
+            if (all(greaterThanEqual(position, corner[0]))) {
                 outColor = leafColor(
                     addressOf(
                         child[size-1],

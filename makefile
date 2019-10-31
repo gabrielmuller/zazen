@@ -16,7 +16,7 @@ construct:
 	g++ -Wall -Wextra -O3 -Ofast src/construct/main.cpp -o build/construct
 
 debug:
-	g++ -Wall -Wextra -g -O3 src/construct/main.cpp -o build/construct
+	g++ -Wall -Wextra -g -Og src/construct/main.cpp -o build/construct
 
 prof:
 	g++ -g -fprofile-arcs -O3 -Ofast src/render/main.cpp -lSDL2 -o build/render
@@ -27,7 +27,7 @@ run_construct:
 	cd build; ./construct
 
 run_render:
-	cd build; ./render generated.zaz
+	cd build; ./render bunny.zaz
 
 bench:
 	cd build; ./render generated.zaz 1280 720 1

@@ -21,14 +21,14 @@ struct Leaf {
     }
 
     inline bool valid() const {
-        return (bool) rgba[3];
+        return rgba[3] != 0x00;
     }
 
     inline bool operator!=(const Leaf& o) const {
-        return (uint32_t) *rgba != (uint32_t) *o.rgba;
+        return *((uint32_t*) rgba) != *((uint32_t*) o.rgba);
     }
 
     inline bool operator==(const Leaf& o) const {
-        return !(*this != o);
+        return !operator!=(o);
     }
 };
