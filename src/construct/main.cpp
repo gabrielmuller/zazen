@@ -35,10 +35,10 @@ void save_model(Model* model) {
 
 int main() {
     GenerateModel* gen = generated();
-    //StanfordModel* bunny_model = bunny();
+    StanfordModel* bunny_model = bunny();
     save_model(gen);
-    //save_model(bunny_model);
+    save_model(bunny_model);
     delete gen;
-    //delete bunny_model;
+    delete bunny_model;
     return 0;
 }

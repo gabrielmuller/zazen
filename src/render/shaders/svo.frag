@@ -14,7 +14,7 @@ layout (binding = 2, std430) buffer svo {
 };
 
 uint whichOctant(in vec3 pos, in vec3 corner, in float size) {
-    /* Which of the eight octant does pos reside in the box (corner, size)? */
+    /* Which of the eight octants does pos reside in the box (corner, size)? */
     uint oct = 0;
     float octSize = size / 2.;
 
@@ -53,7 +53,7 @@ vec4 leafColor(in uint block_i) {
 
 uint addressOf(in uint child, in uint leaf, in uint valid, in uint octant) {
     /* Get address of a specific child inside a voxel. */
-    uint mask = ~(0xffffffff << octant);
+    uint mask = ~(~0 << octant);
     return child + bitCount(mask & valid) * 2 - bitCount(mask & leaf);
 }
     
@@ -80,8 +80,6 @@ void main() {
     corner[0] = vec3(-1);
     octant[0] = whichOctant(position, vec3(-1), boxSize);
 
-
-
     /* Assume ray direction does not change during execution 
      * (no refraction / reflection) 
      */
@@ -92,9 +90,6 @@ void main() {
     vec3 maskVec = octVec(mask);
     vec3 mirror = vec3(1.) - maskVec * 2.;
 
-    float dist = 0.;
-
-    vec3 debug = vec3(0.);
     while (true) {
         uint oct = octant[size-1];
         if (bool((leaf[size-1] >> oct) & 1)) {
@@ -114,7 +109,6 @@ void main() {
         } 
 
         if (bool((valid[size-1] >> oct) & 1)) {
-            debug.y += (1. - debug.y) / 64.;
             /* Go a level deeper. */
 
             // PUSH
@@ -138,10 +132,14 @@ void main() {
                 boxSize
             );
 
+            /*
+            outColor = vec4(corner[size]+vec3(1.), 1.);
+            outPosition = vec4(gl_FragCoord.xyx, 1.);
+            return;
+            */
             size++;
 
         } else {
-            debug.z += (1. - debug.z) / 64.;
             /* Ray origin is in invalid voxel, cast ray until it hits the next
              * voxel. 
              */
@@ -173,7 +171,6 @@ void main() {
 
             /* Ray will start next step at the point of this intersection. */
             position += direction * amount;
-            dist += amount;
 
             while (
                 bool(hitFace & ~(octant[size-1] ^ mask)) && 
@@ -187,9 +184,7 @@ void main() {
             }
 
             if (size == 0) {
-                /* Ray is outside root octree. 
-                 * Color will be calculated next pass. 
-                 */
+                /* Ray is outside root octree. */
                 outColor = vec4(0.0);
                 outPosition = vec4(0.0);
                 return;

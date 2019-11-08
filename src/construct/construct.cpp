@@ -145,6 +145,7 @@ class Builder {
         }
 
         if (i < queue_count) push_at(to_push, i); // push to parent
+        else { writer << to_push.voxel; std::cout << "ROOT PUSHED\n";} // out of queues, push root voxel
 
         /* All children have been collapsed, therefore clear. */
         child_queue.clear();
