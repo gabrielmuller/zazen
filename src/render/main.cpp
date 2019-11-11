@@ -37,7 +37,7 @@ std::string read_file(std::string filename) {
 void position_camera(const float time) {
     cam_center.origin = Vector(sin(time)*0.9,
                                cos(time/1.12)*0.9,
-                               sin(time/3.21) * 0.9 - 2.1
+                               sin(time/3.21) * 0.9 - 3.1
                                );
 }
 
@@ -122,7 +122,7 @@ int main(int argc, char **argv) {
     if (arg >= argc) height = 720;
     else height = atoi(argv[arg++]);
 
-    if (arg >= argc) upscale = 4;
+    if (arg >= argc) upscale = 2;
     else upscale = atoi(argv[arg++]);
 
     SDL_Init(SDL_INIT_VIDEO);

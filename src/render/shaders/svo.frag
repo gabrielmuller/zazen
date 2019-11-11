@@ -34,7 +34,7 @@ vec3 octVec(in uint octant) {
     return vec;
 }
 
-void voxel(in uint block_i, out uint child, out uint leaf, out uint valid) {
+void voxel(uint block_i, out uint child, out uint leaf, out uint valid) {
     child = data[block_i];
     leaf = data[block_i + 1] >> 8;
     valid = data[block_i + 1] & 0xff;
@@ -48,7 +48,6 @@ vec4 leafColor(in uint block_i) {
         float((rgba >> 16) & 0xff) / 256.,
         float((rgba >> 24) & 0xff) / 256.
     );
-    return vec4(1.0, 0., 0., 1.0);
 }
 
 uint addressOf(in uint child, in uint leaf, in uint valid, in uint octant) {
@@ -68,44 +67,64 @@ void main() {
     uint size = 1; // size of stack
     float boxSize = 2.0; // size of box ray is currently in
 
-    // stack attributes
+    /* Stack attributes */
     uint child[10];
     uint leaf[10];
     uint valid[10];
     vec3 corner[10];
     uint octant[10];
 
-    // set root stack entry
+    /* Set root stack entry */
     voxel(modelSize - 2, child[0], leaf[0], valid[0]);
     corner[0] = vec3(-1);
-    octant[0] = whichOctant(position, vec3(-1), boxSize);
 
     /* Assume ray direction does not change during execution 
      * (no refraction / reflection) 
      */
     uint mask = 0;
-    if (direction.x >= 0) mask ^= 4;
-    if (direction.y >= 0) mask ^= 2;
-    if (direction.z >= 0) mask ^= 1;
+    vec3 invdir = 1. / direction;
+    if (invdir.x >= 0) mask ^= 4;
+    if (invdir.y >= 0) mask ^= 2;
+    if (invdir.z >= 0) mask ^= 1;
     vec3 maskVec = octVec(mask);
     vec3 mirror = vec3(1.) - maskVec * 2.;
+
+    /* Before the first iteration, if the camera is outside the scenes's
+     * bounding box, the traversal starts at the intersection between the ray
+     * and the box.
+     */
+    vec3 lowCorner = corner[0] + boxSize * (vec3(1.) - maskVec);
+    vec3 highCorner = corner[0] + boxSize * maskVec;
+    vec3 tMin = (lowCorner  - position) * invdir;
+    vec3 tMax = (highCorner - position) * invdir;
+
+    if (any(greaterThan(tMin, tMax.zxy)) 
+     || any(greaterThan(tMin, tMax.yzx))) {
+        /* No intersection */
+        outColor = vec4(0);
+        outPosition = vec4(0);
+        return;
+    }
+
+    float t = max(max(tMin.x, tMin.y), tMin.z);
+    position += direction * t;
+
+    octant[0] = whichOctant(position, vec3(-1), boxSize);
 
     while (true) {
         uint oct = octant[size-1];
         if (bool((leaf[size-1] >> oct) & 1)) {
             /* Ray origin is inside leaf voxel, render leaf. */
-            if (all(greaterThan(position, corner[0]))) {
-                outColor = leafColor(
-                    addressOf(
-                        child[size-1],
-                        leaf [size-1],
-                        valid[size-1],
-                        oct
-                    )
-                );
-                outPosition = vec4(position, 1.0);
-                return;
-            }
+            outColor = leafColor(
+                addressOf(
+                    child[size-1],
+                    leaf [size-1],
+                    valid[size-1],
+                    oct
+                )
+            );
+            outPosition = vec4(position, 1.0);
+            return;
         } 
 
         if (bool((valid[size-1] >> oct) & 1)) {
@@ -132,23 +151,19 @@ void main() {
                 boxSize
             );
 
-            /*
-            outColor = vec4(corner[size]+vec3(1.), 1.);
-            outPosition = vec4(gl_FragCoord.xyx, 1.);
-            return;
-            */
             size++;
 
         } else {
             /* Ray origin is in invalid voxel, cast ray until it hits the next
              * voxel. 
              */
+
             float childSize = boxSize * 0.5;
             vec3 childCorner = corner[size-1] + childSize * octVec(oct);
 
             vec3 adjustedCorner = childCorner - maskVec * childSize * mirror;
 
-            vec3 t = (adjustedCorner - position) / direction;
+            vec3 t = (adjustedCorner - position) * invdir;
             float amount = 99999999999.; // Distance ray will traverse
 
             /* Detect which face hit. */
