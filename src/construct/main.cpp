@@ -34,14 +34,11 @@ void save_model(Model* model) {
 }
 
 int main() {
-    /*
     GenerateModel* gen = generated();
-    save_model(gen);
-    delete gen;
-    */
-
     StanfordModel* bunny_model = bunny();
+    save_model(gen);
     save_model(bunny_model);
+    delete gen;
     delete bunny_model;
     return 0;
 }

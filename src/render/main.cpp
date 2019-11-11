@@ -36,8 +36,8 @@ std::string read_file(std::string filename) {
 
 void position_camera(const float time) {
     cam_center.origin = Vector(sin(time)*0.9,
-                               sin(time/3.21) * 0.9 - 3.1,
-                               cos(time/1.12)*0.9
+                               cos(time/1.12)*0.9,
+                               sin(time/3.21) * 0.9 - 3.1
                                );
 }
 
