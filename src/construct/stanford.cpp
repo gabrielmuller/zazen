@@ -25,8 +25,7 @@ struct StanfordModel : Model {
         }
 
         uint16_t value = data[pos.z][pos.y * width + pos.x];
-        if (pos.z == depth - 1) return Leaf(0xff, 0, 0, 0xff);
-        if (pos.y >= 100 && pos.y < 200) return Leaf(0x00, 0xff, 0xff, 0xff);
+
         // quantize values
         value /= 256 * 16;
         value *= 16;
