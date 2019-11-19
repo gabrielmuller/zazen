@@ -60,8 +60,7 @@ void main() {
     /* Initialize ray. */
     float fov = 0.6;
     vec2 uv = (gl_FragCoord.xy * 2. / viewportSize.y)  - vec2(1.);
-    vec3 direction = normalize(vec3(uv * fov, 1.));
-    direction = direction.xzy;
+    vec3 direction = vec3(uv * fov, 1.);
     vec3 position = camPos;
 
     /* Set up stack. */
@@ -102,8 +101,8 @@ void main() {
     if (any(greaterThan(tMin, tMax.zxy)) 
      || any(greaterThan(tMin, tMax.yzx))) {
         /* No intersection */
-        outColor = vec4(0);
-        outPosition = vec4(0);
+        outColor = vec4(0.);
+        outPosition = vec4(0.);
         return;
     }
 
