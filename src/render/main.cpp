@@ -4,6 +4,14 @@
 #include <fstream>
 #include <ctime>
 #include <iostream>
+#include <cmath>
+
+#include <glm/vec3.hpp>
+#include <glm/mat3x3.hpp>
+#include <glm/trigonometric.hpp>
+#include <glm/geometric.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <GL/glew.h>
 
 #include <SDL2/SDL.h>
@@ -13,7 +21,13 @@
 #include "block.cpp"
 
 unsigned int width, height, upscale;
-Ray cam_center;
+glm::vec3 camPosition(0.123, 0.213, -3.193);
+glm::mat3 camRotation(1.0);
+
+const float camSpeed = 0.02;
+const float lookSpeed = 0.03;
+float pitch = 0; // -89 to 89
+float yaw = 90; //  0  to 360
 
 std::string read_file(std::string filename) {
     std::string content;
@@ -32,13 +46,6 @@ std::string read_file(std::string filename) {
     }
 
     return content;
-}
-
-void position_camera(const float time) {
-    cam_center.origin = Vector(sin(time)*0.9,
-                               cos(time/1.12)*0.9,
-                               sin(time/3.21) * 0.9 - 3.1
-                               );
 }
 
 bool compile_shader(GLuint shader, std::string filename) {
@@ -142,6 +149,7 @@ int main(int argc, char **argv) {
     );
 
     SDL_GLContext context = SDL_GL_CreateContext(window);
+    SDL_SetRelativeMouseMode(SDL_TRUE);
 
     glewExperimental = GL_TRUE;
     glewInit();
@@ -247,6 +255,7 @@ int main(int argc, char **argv) {
 
     GLint time = glGetUniformLocation(shaderProgram, "time");
     GLint camPos = glGetUniformLocation(shaderProgram, "camPos");
+    GLint camRot = glGetUniformLocation(shaderProgram, "camRot");
 
     glUseProgram(lightProgram);
     {
@@ -274,25 +283,86 @@ int main(int argc, char **argv) {
 
     bool running = true;
     unsigned long long timer = clock();
+    glm::vec3 deltaCamPos(0);
 
     for (unsigned int tick = 0; running; tick++) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 running = false;
+            } else if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_UP:
+                    case SDLK_w:
+                        deltaCamPos.z = camSpeed;
+                        break;
+                    case SDLK_DOWN:
+                    case SDLK_s:
+                        deltaCamPos.z = -camSpeed;
+                        break;
+                    case SDLK_LEFT:
+                    case SDLK_a:
+                        deltaCamPos.x = -camSpeed;
+                        break;
+                    case SDLK_RIGHT:
+                    case SDLK_d:
+                        deltaCamPos.x = camSpeed;
+                        break;
+                }
+            } else if (event.type == SDL_KEYUP) {
+                switch (event.key.keysym.sym) {
+                    case SDLK_UP:
+                    case SDLK_DOWN:
+                    case SDLK_w:
+                    case SDLK_s:
+                        deltaCamPos.z = 0;
+                        break;
+                    case SDLK_LEFT:
+                    case SDLK_RIGHT:
+                    case SDLK_a:
+                    case SDLK_d:
+                        deltaCamPos.x = 0;
+                        break;
+                }
+            } else if (event.type == SDL_MOUSEMOTION) {
+                yaw += event.motion.xrel * lookSpeed;
+                pitch += event.motion.yrel * lookSpeed;
+                yaw = std::fmod(yaw, 360.0);
+                if (pitch < -89.0) pitch = -89.0;
+                if (pitch >  89.0) pitch =  89.0;
+                glm::vec3 pitchDir(
+                    0,
+                    sin(glm::radians(pitch)),
+                    cos(glm::radians(pitch))
+                );
+                pitchDir = glm::normalize(pitchDir);
+                glm::vec3 yawDir(
+                    cos(glm::radians(yaw)),
+                    0,
+                    sin(glm::radians(yaw))
+                );
+                yawDir = glm::normalize(yawDir);
+
+                camRotation = glm::lookAt(
+                    glm::vec3(0),
+                    yawDir,
+                    glm::vec3(0,1,0)
+                ) * glm::lookAt(
+                    glm::vec3(0),
+                    pitchDir,
+                    glm::vec3(0,1,0)
+                );
             }
         }
+
+        camPosition += camRotation * deltaCamPos;
 
         // First pass
         glUseProgram(shaderProgram);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
-
-        position_camera(tick / 60.0);
         glUniform1f(time, 0);
-        glUniform3f(
-            camPos,
-            cam_center.origin.x, cam_center.origin.y, cam_center.origin.z
-        );
+        glUniform3fv(camPos, 1, &camPosition[0]);
+        glUniformMatrix3fv(camRot, 1, GL_FALSE, &camRotation[0][0]);
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
 

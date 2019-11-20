@@ -16,15 +16,17 @@ struct StanfordModel : Model {
     StanfordModel(std::string name, std::string prefix,
             unsigned int width, unsigned int height, unsigned int depth) 
             : Model(name, width, height, depth) {
-        data = read_model(name, prefix, depth);
+        data = read_model(name, prefix, height);
     }
 
     Leaf at(int3 pos) const override {
+        pos.y = height - pos.y - 1;
+
         if (pos.x >= width || pos.y >= height || pos.z >= depth) {
             return Leaf();
         }
 
-        uint16_t value = data[pos.z][pos.y * width + pos.x];
+        uint16_t value = data[pos.y][pos.z * depth + pos.x];
 
         // quantize values
         value /= 256 * 16;
@@ -35,7 +37,7 @@ struct StanfordModel : Model {
     }
 
     ~StanfordModel() override {
-        for (unsigned int i = 0; i < depth; i++) {
+        for (unsigned int i = 0; i < height; i++) {
             delete[] data[i];
         }
         delete[] data;

@@ -4,6 +4,7 @@ uniform uvec2 viewportSize;
 uniform vec3 camPos;
 uniform float time;
 uniform uint modelSize;
+uniform mat3 camRot;
 in vec4 gl_FragCoord;
 
 layout (location = 0) out vec4 outColor;
@@ -60,8 +61,14 @@ void main() {
     /* Initialize ray. */
     float fov = 0.6;
     vec2 uv = (gl_FragCoord.xy * 2. / viewportSize.y)  - vec2(1.);
-    vec3 direction = vec3(uv * fov, 1.);
+    vec3 direction = camRot * vec3(uv * fov, 1.);
     vec3 position = camPos;
+
+    /*
+    outColor = vec4(direction,1.);
+    outPosition = vec4(gl_FragCoord.xyx,1.);
+    return
+    */
 
     /* Set up stack. */
     uint size = 1; // size of stack
@@ -106,7 +113,7 @@ void main() {
         return;
     }
 
-    float t = max(max(tMin.x, tMin.y), tMin.z);
+    float t = max(max(max(tMin.x, tMin.y), tMin.z), 0.);
     position += direction * t;
 
     octant[0] = whichOctant(position, vec3(-1), boxSize);

@@ -5,11 +5,11 @@
 #include "../render/block.cpp"
 
 StanfordModel* bunny() {
-    return new StanfordModel("bunny", "", 512, 512, 316);
+    return new StanfordModel("bunny", "", 512, 316, 512);
 }
 
 StanfordModel* brain() {
-    return new StanfordModel("brain", "MRbrain.", 256, 256, 109);
+    return new StanfordModel("brain", "MRbrain.", 256, 109, 256);
 }
 
 GenerateModel* generated() {
@@ -34,11 +34,11 @@ void save_model(Model* model) {
 }
 
 int main() {
-    GenerateModel* gen = generated();
+    //GenerateModel* gen = generated();
     StanfordModel* bunny_model = bunny();
-    save_model(gen);
+    //save_model(gen);
     save_model(bunny_model);
-    delete gen;
+    //delete gen;
     delete bunny_model;
     return 0;
 }
