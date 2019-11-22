@@ -26,7 +26,21 @@ void main() {
         colors[i] = texture(colorTexture, verts[i]);
         pos[i] = texture(positionTexture, verts[i]);
         if (pos[i].w == 0.0) {
-            outColor = vec4(0.8, 0.9, 1.0, 1.0);
+            /* Background color */
+            vec3 BG_COLORS[] = {
+                vec3(0.749, 0.784, 0.843),
+                vec3(0.886, 0.824, 0.824),
+                vec3(0.89, 0.886, 0.706),
+                vec3(0.635, 0.71, 0.624),
+            };
+            outColor = vec4(
+                mix(
+                    mix(BG_COLORS[0], BG_COLORS[1], pos[i].x),
+                    mix(BG_COLORS[1], BG_COLORS[2], pos[i].y),
+                    pos[i].z
+                ),
+                1.0
+            );
             return;
         }
     }
@@ -37,9 +51,10 @@ void main() {
         );
     normal = normalize(normal);
 
-    vec3 sun = normalize(pos[0].xyz);
+    vec3 lampPos = vec3(0., 1., 0.);
+    vec3 lightDir = normalize(pos[0].xyz - lampPos);
     float dist = length(pos[0].xyz);
-    float lightness = dot(sun, normal) * 0.8 * 1./(dist*dist) + 0.2;
+    float lightness = dot(lightDir, normal) * 0.6 * 1./(dist*dist) + 0.4;
 
     outColor = colors[0] * 0.5 + colors[1] * 0.25 + colors[2] * 0.25 * lightness;
 }

@@ -64,12 +64,6 @@ void main() {
     vec3 direction = camRot * vec3(uv * fov, 1.);
     vec3 position = camPos;
 
-    /*
-    outColor = vec4(direction,1.);
-    outPosition = vec4(gl_FragCoord.xyx,1.);
-    return
-    */
-
     /* Set up stack. */
     uint size = 1; // size of stack
     float boxSize = 2.0; // size of box ray is currently in
@@ -96,25 +90,34 @@ void main() {
     vec3 maskVec = octVec(mask);
     vec3 mirror = vec3(1.) - maskVec * 2.;
 
-    /* Before the first iteration, if the camera is outside the scenes's
-     * bounding box, the traversal starts at the intersection between the ray
-     * and the box.
-     */
-    vec3 lowCorner = corner[0] + boxSize * (vec3(1.) - maskVec);
-    vec3 highCorner = corner[0] + boxSize * maskVec;
-    vec3 tMin = (lowCorner  - position) * invdir;
-    vec3 tMax = (highCorner - position) * invdir;
+    if (any(lessThan(position, corner[0]))
+     || any(greaterThan(position, corner[0] + vec3(boxSize)))) {
+        /* Before the first iteration, if the camera is outside the scenes's
+         * bounding box, the traversal starts at the intersection between the
+         * ray and the box.
+         */
+        vec3 lowCorner = corner[0] + boxSize * (vec3(1.) - maskVec);
+        vec3 highCorner = corner[0] + boxSize * maskVec;
+        vec3 tMin = (lowCorner  - position) * invdir;
+        vec3 tMax = (highCorner - position) * invdir;
 
-    if (any(greaterThan(tMin, tMax.zxy)) 
-     || any(greaterThan(tMin, tMax.yzx))) {
-        /* No intersection */
-        outColor = vec4(0.);
-        outPosition = vec4(0.);
-        return;
+        if (any(greaterThan(tMin, tMax.zxy)) 
+         || any(greaterThan(tMin, tMax.yzx))) {
+            /* No intersection */
+            outColor = vec4(0.);
+            outPosition = vec4(0.);
+            return;
+        }
+
+        float t = max(max(tMin.x, tMin.y), tMin.z);
+        position += direction * t;
+
+        if (t < 0.) {
+            outColor = vec4(0.);
+            outPosition = vec4(0.);
+            return;
+        }
     }
-
-    float t = max(max(max(tMin.x, tMin.y), tMin.z), 0.);
-    position += direction * t;
 
     octant[0] = whichOctant(position, vec3(-1), boxSize);
 
@@ -208,7 +211,7 @@ void main() {
             if (size == 0) {
                 /* Ray is outside root octree. */
                 outColor = vec4(0.0);
-                outPosition = vec4(0.0);
+                outPosition = vec4(direction, 0.);
                 return;
             }
             /* Loop end: found ancestral voxel with space on the hit axis.

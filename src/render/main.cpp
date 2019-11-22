@@ -25,7 +25,7 @@ glm::vec3 camPosition(0.123, 0.213, -3.193);
 glm::mat3 camRotation(1.0);
 
 const float camSpeed = 0.02;
-const float lookSpeed = 0.03;
+const float lookSpeed = 0.06;
 float pitch = 0; // -89 to 89
 float yaw = 90; //  0  to 360
 
