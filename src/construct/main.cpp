@@ -2,6 +2,7 @@
 #include "zstream.cpp"
 #include "stanford.cpp"
 #include "generate.cpp"
+#include "sponge.cpp"
 #include "../render/block.cpp"
 
 StanfordModel* bunny() {
@@ -9,7 +10,7 @@ StanfordModel* bunny() {
 }
 
 StanfordModel* brain() {
-    return new StanfordModel("brain", "MRbrain.", 256, 109, 256);
+    return new StanfordModel("MRbrain", "MRbrain.", 256, 109, 256);
 }
 
 GenerateModel* generated() {
@@ -17,11 +18,17 @@ GenerateModel* generated() {
     return new GenerateModel("generated", size, size, size);
 }
 
+SpongeModel* sponge() {
+    const unsigned int size = 243;
+    return new SpongeModel("sponge", size, size, size);
+}
+
 void save_model(Model* model) {
     ZStream stream(model);
     BlockWriter writer(model->name + ".zaz");
     Builder builder(stream.power, writer);
     unsigned int counter = 0;
+    std::cout << stream.power << " POWER\n";
     while(stream.is_open()) {
         builder.add_leaf(stream.next());
         if (!(counter % 10000)) {
@@ -35,10 +42,16 @@ void save_model(Model* model) {
 
 int main() {
     //GenerateModel* gen = generated();
-    StanfordModel* bunny_model = bunny();
+    //StanfordModel* bunny_model = bunny();
+    //SpongeModel* sponge_model = sponge();
+    StanfordModel* brain_model = brain();
     //save_model(gen);
-    save_model(bunny_model);
+    //save_model(bunny_model);
+    //save_model(sponge_model);
+    save_model(brain_model);
     //delete gen;
-    delete bunny_model;
+    //delete bunny_model;
+    //delete sponge_model;
+    delete brain_model;
     return 0;
 }

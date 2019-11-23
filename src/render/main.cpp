@@ -23,9 +23,11 @@
 unsigned int width, height, upscale;
 glm::vec3 camPosition(0.123, 0.213, -3.193);
 glm::mat3 camRotation(1.0);
+float crossSection = 1;
 
 const float camSpeed = 0.02;
 const float lookSpeed = 0.06;
+const float sectionSpeed = 0.002;
 float pitch = 0; // -89 to 89
 float yaw = 90; //  0  to 360
 
@@ -254,6 +256,7 @@ int main(int argc, char **argv) {
     }
 
     GLint time = glGetUniformLocation(shaderProgram, "time");
+    GLint xSection = glGetUniformLocation(shaderProgram, "xSection");
     GLint camPos = glGetUniformLocation(shaderProgram, "camPos");
     GLint camRot = glGetUniformLocation(shaderProgram, "camRot");
 
@@ -284,6 +287,7 @@ int main(int argc, char **argv) {
     bool running = true;
     unsigned long long timer = clock();
     glm::vec3 deltaCamPos(0);
+    float deltaSection = 0;
 
     for (unsigned int tick = 0; running; tick++) {
         while (SDL_PollEvent(&event)) {
@@ -307,6 +311,18 @@ int main(int argc, char **argv) {
                     case SDLK_d:
                         deltaCamPos.x = camSpeed;
                         break;
+                    case SDLK_LSHIFT:
+                        deltaCamPos.y = -camSpeed;
+                        break;
+                    case SDLK_SPACE:
+                        deltaCamPos.y = camSpeed;
+                        break;
+                    case SDLK_q:
+                        deltaSection = -sectionSpeed;
+                        break;
+                    case SDLK_e:
+                        deltaSection = sectionSpeed;
+                        break;
                 }
             } else if (event.type == SDL_KEYUP) {
                 switch (event.key.keysym.sym) {
@@ -321,6 +337,14 @@ int main(int argc, char **argv) {
                     case SDLK_a:
                     case SDLK_d:
                         deltaCamPos.x = 0;
+                        break;
+                    case SDLK_LSHIFT:
+                    case SDLK_SPACE:
+                        deltaCamPos.y = 0;
+                        break;
+                    case SDLK_q:
+                    case SDLK_e:
+                        deltaSection = 0;
                         break;
                 }
             } else if (event.type == SDL_MOUSEMOTION) {
@@ -355,17 +379,20 @@ int main(int argc, char **argv) {
         }
 
         camPosition += camRotation * deltaCamPos;
+        crossSection += deltaSection;
+        if (crossSection < 0) crossSection = 0;
+        if (crossSection > 1) crossSection = 1;
 
         // First pass
         glUseProgram(shaderProgram);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 
         glUniform1f(time, 0);
+        glUniform1f(xSection, crossSection);
         glUniform3fv(camPos, 1, &camPosition[0]);
         glUniformMatrix3fv(camRot, 1, GL_FALSE, &camRotation[0][0]);
 
         glDrawArrays(GL_TRIANGLES, 0, 3);
-
 
         // Second pass
         glBindFramebuffer(GL_FRAMEBUFFER, 0);

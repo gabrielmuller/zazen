@@ -5,6 +5,7 @@ uniform vec3 camPos;
 uniform float time;
 uniform uint modelSize;
 uniform mat3 camRot;
+uniform float xSection;
 in vec4 gl_FragCoord;
 
 layout (location = 0) out vec4 outColor;
@@ -90,14 +91,15 @@ void main() {
     vec3 maskVec = octVec(mask);
     vec3 mirror = vec3(1.) - maskVec * 2.;
 
+    float cutSize = boxSize * xSection;
     if (any(lessThan(position, corner[0]))
-     || any(greaterThan(position, corner[0] + vec3(boxSize)))) {
+     || any(greaterThan(position, corner[0] + vec3(cutSize)))) {
         /* Before the first iteration, if the camera is outside the scenes's
          * bounding box, the traversal starts at the intersection between the
          * ray and the box.
          */
-        vec3 lowCorner = corner[0] + boxSize * (vec3(1.) - maskVec);
-        vec3 highCorner = corner[0] + boxSize * maskVec;
+        vec3 lowCorner = corner[0] + cutSize * (vec3(1.) - maskVec);
+        vec3 highCorner = corner[0] + cutSize * maskVec;
         vec3 tMin = (lowCorner  - position) * invdir;
         vec3 tMax = (highCorner - position) * invdir;
 

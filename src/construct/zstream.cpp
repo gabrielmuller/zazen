@@ -48,7 +48,7 @@ class ZStream {
     const unsigned int power;
     const unsigned long long int stream_size;
     ZStream(Model* model) : model(model), index(0), _open(true), 
-            power(std::log2(std::max({model->width, model->height, model->depth}))),
+            power(std::ceil(std::log2(std::max({model->width, model->height, model->depth})))),
             stream_size(std::pow(2, power * 3)) {
         stack.push(ZFrame(1 << power, int3(0, 0, 0), 0));
         stream_leaf = model->at(next_coords());

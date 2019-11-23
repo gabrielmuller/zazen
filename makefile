@@ -2,8 +2,6 @@ all: build
 
 build: construct render run_construct run_render
 
-run: build run_construct run_render
-
 clean:
 	rm -rf build
 	mkdir build
@@ -27,7 +25,7 @@ run_construct:
 	cd build; ./construct
 
 run_render:
-	cd build; ./render bunny.zaz
+	cd build; ./render MRbrain.zaz 1024 1024 1
 
 bench:
 	cd build; ./render generated.zaz 1280 720 1
