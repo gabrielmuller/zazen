@@ -25,7 +25,7 @@ run_construct:
 	cd build; ./construct
 
 run_render:
-	cd build; ./render MRbrain.zaz 1024 1024 1
+	cd build; ./render
 
 bench:
 	cd build; ./render generated.zaz 1280 720 1

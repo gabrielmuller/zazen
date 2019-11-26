@@ -116,23 +116,14 @@ void setup_tex(GLuint& texture, GLuint attachment, GLenum interp, GLenum format,
 }
 
 int main(int argc, char **argv) {
-    int arg = 1;
+    unsigned int arg = 1;
+    const std::string filename = arg >= argc ? "sponge.zaz" : argv[arg++];
 
-    if (arg >= argc) {
-        std::cout << "Please specify an input file.\n";
-        return 1;
-    }
+    Block* block = from_file(filename);
 
-    Block* block = from_file(argv[arg++]);
-
-    if (arg >= argc) width = 1280;
-    else width = atoi(argv[arg++]);
-
-    if (arg >= argc) height = 720;
-    else height = atoi(argv[arg++]);
-
-    if (arg >= argc) upscale = 2;
-    else upscale = atoi(argv[arg++]);
+    width = arg >= argc ? 1280 :  atoi(argv[arg++]);
+    height = arg >= argc ? 720 :  atoi(argv[arg++]);
+    upscale = arg >= argc ? 1 :  atoi(argv[arg++]);
 
     SDL_Init(SDL_INIT_VIDEO);
     atexit(SDL_Quit);
@@ -226,8 +217,8 @@ int main(int argc, char **argv) {
 
     if (
         compile_shader(vertexShader, "svo.vert") &&
-        compile_shader(fragmentShader,  "../src/render/shaders/svo.frag") &&
-        compile_shader(lightShader, "../src/render/shaders/light.frag")
+        compile_shader(fragmentShader,  "svo.frag") &&
+        compile_shader(lightShader, "light.frag")
     ) {
         /*
         glBindFragDataLocation(shaderProgram, 0, "outColor");

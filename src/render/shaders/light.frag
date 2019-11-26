@@ -43,6 +43,11 @@ void main() {
             );
             return;
         }
+        if (all(equal(pos[0], pos[1])) && all(equal(pos[1], pos[2]))) {
+            /* Positions are equal, probably inside a leaf */
+            outColor = colors[0];
+            return;
+        }
     }
 
     vec3 normal = cross(
